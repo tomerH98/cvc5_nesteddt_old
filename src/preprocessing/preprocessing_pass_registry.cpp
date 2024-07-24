@@ -44,6 +44,7 @@
 #include "preprocessing/passes/ite_simp.h"
 #include "preprocessing/passes/learned_rewrite.h"
 #include "preprocessing/passes/miplib_trick.h"
+#include "preprocessing/passes/nesteddt.h"
 #include "preprocessing/passes/nl_ext_purify.h"
 #include "preprocessing/passes/non_clausal_simp.h"
 #include "preprocessing/passes/pseudo_boolean_processor.h"
@@ -151,6 +152,7 @@ PreprocessingPassRegistry::PreprocessingPassRegistry()
   registerPassInfo("miplib-trick", callCtor<MipLibTrick>);
   registerPassInfo("non-clausal-simp", callCtor<NonClausalSimp>);
   registerPassInfo("ackermann", callCtor<Ackermann>);
+  registerPassInfo("nesteddt", callCtor<Nesteddt>);
   registerPassInfo("ext-rew-pre", callCtor<ExtRewPre>);
   registerPassInfo("theory-preprocess", callCtor<TheoryPreprocess>);
   registerPassInfo("nl-ext-purify", callCtor<NlExtPurify>);
