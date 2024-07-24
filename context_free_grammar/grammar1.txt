@@ -1,0 +1,21 @@
+0.1 % S -> not eq
+0.9 % S -> eq
+
+0.9 % eq -> = T T
+0.1 % eq -> = int int
+
+0.45 % ArrT -> arr T
+0.3 % ArrT -> a1
+0.25 % ArrT -> a2
+
+0.5 % T -> select ArrT int
+0.25 % T -> t1
+0.25 % T -> t2
+
+0.05 % int -> * int int
+0.05 % int -> + int int
+0.05 % int -> - int int
+0.25 % int -> 1
+0.2 % int -> 2
+0.15 % int -> 3
+0.35 % int -> id T
