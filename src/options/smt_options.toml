@@ -9,6 +9,15 @@ name   = "SMT Layer"
   default    = "false"
   help       = "eliminate functions by ackermannization"
 
+  
+[[option]]
+  name       = "nesteddt"
+  category   = "regular"
+  long       = "nesteddt"
+  type       = "bool"
+  default    = "false"
+  help       = "right now, convert all to false" 
+
 [[option]]
   name       = "simplificationMode"
   alias      = ["simplification-mode"]
