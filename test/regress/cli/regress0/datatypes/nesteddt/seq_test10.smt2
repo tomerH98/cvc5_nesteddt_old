@@ -1,4 +1,4 @@
-; COMMAND-LINE: --nesteddt
+; COMMAND-LINE: --nesteddt  --dt-blast-splits
 ; EXPECT: unsat
 ; DISABLE-TESTER: model
 (set-logic ALL)

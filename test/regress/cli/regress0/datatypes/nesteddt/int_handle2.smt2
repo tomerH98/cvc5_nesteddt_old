@@ -1,4 +1,4 @@
-; COMMAND-LINE: --nesteddt
+; COMMAND-LINE: --nesteddt  --dt-blast-splits
 ; EXPECT: unsat
 ; DISABLE-TESTER: model
 ; This is a simple SMT-LIB file that is satisfiable
