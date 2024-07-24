@@ -1028,6 +1028,7 @@ set(regress_0_tests
   regress0/named-expr-use.smt2
   regress0/nesteddt/ackermann1.smt2
   regress0/datatypes/nesteddt/basic_problem.smt2
+  regress0/datatypes/nesteddt/basic_problem_diffent_child.smt2
   regress0/nesteddt/basic_problem_func.smt2
   regress0/nesteddt/basic_problem_func_int.smt2
   regress0/nesteddt/basic_problem_not_flatten.smt2
