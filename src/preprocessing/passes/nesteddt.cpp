@@ -188,6 +188,13 @@ void Nesteddt::createGraph(Graph* g, std::set<TypeNode>* typesSet, std::map<Type
 
 
 void Nesteddt::nodeCycleDetector(Graph* g, std::set<int>* cycleTypes, std::map<int, TypeNode>* typeNodeMapRev) {
+    // Create the reverse graph
+    Graph reverse_g(num_vertices(*g));
+    graph_traits<Graph>::edge_iterator ei, ei_end;
+    for (boost::tie(ei, ei_end) = edges(*g); ei != ei_end; ++ei) {
+        add_edge(target(*ei, *g), source(*ei, *g), reverse_g);
+    }
+
     // Compute the Strong Components (SCCs)
     std::vector<int> component(num_vertices(*g)), discover_time(num_vertices(*g));
     std::vector<default_color_type> color(num_vertices(*g));
@@ -234,7 +241,7 @@ void Nesteddt::nodeCycleDetector(Graph* g, std::set<int>* cycleTypes, std::map<i
 
                         // add the children of the current node to the stack
                         graph_traits<Graph>::adjacency_iterator ai, ai_end;
-                        for (boost::tie(ai, ai_end) = adjacent_vertices(node, *g); ai != ai_end; ++ai) {
+                        for (boost::tie(ai, ai_end) = adjacent_vertices(node, reverse_g); ai != ai_end; ++ai) {
                             stack.push(*ai);
                         }
                     }
@@ -593,10 +600,10 @@ void Nesteddt::defineArraySeqInMap(std::map<TypeNode, DType>* mapDType, std::map
         TypeNode elementType = seqType.getSequenceElementType();
         TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
         // Add an empty constructor
-        ss.str("");
-        ss  <<  "nil_"  <<  newElementType;
-        std::shared_ptr<DTypeConstructor> nil = std::make_shared<DTypeConstructor>(ss.str());
-        newDType.addConstructor(nil);
+        //ss.str("");
+        //ss  <<  "nil_"  <<  newElementType;
+        //std::shared_ptr<DTypeConstructor> nil = std::make_shared<DTypeConstructor>(ss.str());
+        //newDType.addConstructor(nil);
         // Add a constructor for the array's elements
         std::shared_ptr<DTypeConstructor> cons = std::make_shared<DTypeConstructor>("cons");
         // add the id as an argument to the constructor
@@ -918,9 +925,9 @@ void Nesteddt::addAssertionsSelect(std::set<Node>* selectNodes, std::map<TypeNod
         if (!newArrayNode.getType().isArray()){
             newArrayNode = newArrayNode[0];
         }
-        
-        // check if originalArrayNode.getType() is not in ufArrays
-        Assert(ufArrays->find(originalArrayNode.getType()) != ufArrays->end());
+        if (ufArrays->find(originalArrayNode.getType()) == ufArrays->end()){
+            continue;
+        }
 
         arrToCons = (*ufArrays)[originalArrayNode.getType()][1];
         arrToConsApplication = nm->mkNode(Kind::APPLY_UF, arrToCons, newArrayNode);
@@ -1250,7 +1257,7 @@ void Nesteddt::addAssertionsStore(std::map<TypeNode, std::vector<Node>>* arrayIn
         newStoreCons = nm->mkNode(Kind::APPLY_UF, arrToConsFunc, newStoreNode);
 
         const DType& newDType = newArrayCons.getType().getDType();
-        const DTypeConstructor& cons = newDType[1];
+        const DTypeConstructor& cons = newDType[0];
         // check if the arrayType is not in the arrayIndexes
         Assert(arrayIndexes->find(arrayType) != arrayIndexes->end());
         std::vector<Node> oldIndexes = (*arrayIndexes)[arrayType];
