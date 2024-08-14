@@ -1026,48 +1026,52 @@ set(regress_0_tests
   regress0/models-print-1.smt2
   regress0/models-print-2.smt2
   regress0/named-expr-use.smt2
-  regress0/nesteddt/ackermann1.smt2
+  regress0/datatypes/nesteddt/ackermann1.smt2
+  regress0/datatypes/nesteddt/basic_case_no_array.smt2
   regress0/datatypes/nesteddt/basic_problem.smt2
   regress0/datatypes/nesteddt/basic_problem_diffent_child.smt2
-  regress0/nesteddt/basic_problem_func.smt2
-  regress0/nesteddt/basic_problem_func_int.smt2
-  regress0/nesteddt/basic_problem_not_flatten.smt2
+  regress0/datatypes/nesteddt/basic_problem_func.smt2
+  regress0/datatypes/nesteddt/basic_problem_func_int.smt2
+  regress0/datatypes/nesteddt/basic_problem_not_flatten.smt2
   regress0/datatypes/nesteddt/converted_basic.smt2
-  regress0/nesteddt/cycle_10.smt2
-  regress0/nesteddt/cycle_100.smt2
-  regress0/nesteddt/cycle_10_diff_idx.smt2
-  regress0/nesteddt/cycle_10_missing_link.smt2
-  regress0/nesteddt/cycle_50_diff_idx.smt2
+  regress0/datatypes/nesteddt/cycle_10.smt2
+  regress0/datatypes/nesteddt/cycle_100.smt2
+  regress0/datatypes/nesteddt/cycle_100_no_array.smt2
+  regress0/datatypes/nesteddt/cycle_10_diff_idx.smt2
+  regress0/datatypes/nesteddt/cycle_10_missing_link.smt2
+  regress0/datatypes/nesteddt/cycle_190.smt2
+  regress0/datatypes/nesteddt/cycle_50_diff_idx.smt2
   regress0/datatypes/nesteddt/depth_cycles1.smt2
-  regress0/datatypes/nesteddt/depth_cycles2.smt2
-  regress0/datatypes/nesteddt/depth_cycles3.smt2
   regress0/datatypes/nesteddt/depth_cycles10.smt2
   regress0/datatypes/nesteddt/depth_cycles100.smt2
-  regress0/nesteddt/dup_array.smt2
-  regress0/nesteddt/dup_single_type.smt2
-  regress0/nesteddt/int_handle1.smt2
-  regress0/nesteddt/int_handle2.smt2
-  regress0/nesteddt/regular_rdt.smt2
-  regress0/nesteddt/regular_rdt2.smt2
-  regress0/nesteddt/regular_rdt3.smt2
+  regress0/datatypes/nesteddt/depth_cycles2.smt2
+  regress0/datatypes/nesteddt/depth_cycles3.smt2
+  regress0/datatypes/nesteddt/dup_array.smt2
+  regress0/datatypes/nesteddt/dup_single_type.smt2
+  regress0/datatypes/nesteddt/int_handle1.smt2
+  regress0/datatypes/nesteddt/int_handle2.smt2
+  regress0/datatypes/nesteddt/regular_rdt.smt2
+  regress0/datatypes/nesteddt/regular_rdt2.smt2
+  regress0/datatypes/nesteddt/regular_rdt3.smt2
   regress0/datatypes/nesteddt/regular_rdt4.smt2
   regress0/datatypes/nesteddt/seq_test.smt2
   regress0/datatypes/nesteddt/seq_test10.smt2
   regress0/datatypes/nesteddt/seq_test100.smt2
-  regress0/nesteddt/simple_sat.smt2
-  regress0/nesteddt/store_test.smt2
-  regress0/nesteddt/store_test2.smt2  
-  regress0/nesteddt/store_test3.smt2
-  regress0/nesteddt/store_test4.smt2
-  regress0/nesteddt/store_test5.smt2
-  regress0/nesteddt/store_test6.smt2
-  regress0/nesteddt/store_test7.smt2
-  regress0/nesteddt/term_test1.smt2
-  regress0/nesteddt/term_test2.smt2
-  regress0/nesteddt/term_test3.smt2
-  regress0/nesteddt/term_test4.smt2
-  regress0/nesteddt/term_test5.smt2
-  regress0/nesteddt/term_test6.smt2
+  regress0/datatypes/nesteddt/simple.smt2
+  regress0/datatypes/nesteddt/simple_sat.smt2
+  regress0/datatypes/nesteddt/store_test.smt2
+  regress0/datatypes/nesteddt/store_test2.smt2
+  regress0/datatypes/nesteddt/store_test3.smt2
+  regress0/datatypes/nesteddt/store_test4.smt2
+  regress0/datatypes/nesteddt/store_test5.smt2
+  regress0/datatypes/nesteddt/store_test6.smt2
+  regress0/datatypes/nesteddt/store_test7.smt2
+  regress0/datatypes/nesteddt/term_test1.smt2
+  regress0/datatypes/nesteddt/term_test2.smt2
+  regress0/datatypes/nesteddt/term_test3.smt2
+  regress0/datatypes/nesteddt/term_test4.smt2
+  regress0/datatypes/nesteddt/term_test5.smt2
+  regress0/datatypes/nesteddt/term_test6.smt2
   regress0/nl/all-logic.smt2
   regress0/nl/coeff-sat.smt2
   regress0/nl/combined-uf.smt2
