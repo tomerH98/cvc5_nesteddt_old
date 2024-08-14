@@ -1,3 +1,6 @@
+; COMMAND-LINE: --nesteddt --dt-blast-splits
+; EXPECT: sat
+; DISABLE-TESTER: model
 (set-logic ALL)
 
 (declare-const x Int)
