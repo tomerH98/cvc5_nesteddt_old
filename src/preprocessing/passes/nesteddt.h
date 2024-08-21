@@ -61,7 +61,7 @@ class Nesteddt : public PreprocessingPass
    * @param selectNodes The set of select nodes
    * @param functionNodes The set of function nodes
    */
-  void analyzeAssertions(AssertionPipeline* assertionsToPreprocess, std::set<TypeNode>* constructoredTypes, std::set<TypeNode>* arrayTypes, std::set<Node>* vars, std::map<TypeNode, std::vector<Node>>* selectAssertions, std::set<Node>* arrays, std::set<Node>* storeNodes, std::set<Node>* selectNodes, std::set<Node>* functionNodes, std::set<TypeNode>* seqTypes, std::map<TypeNode, std::vector<Node>>* seqNthAssertions, std::set<Node>* seqs, std::set<Node>* seqNtNodes, std::set<TypeNode>* typesSet, std::map<TypeNode, int>* typeNodeMap, std::map<int, TypeNode>* typeNodeMapRev, std::map<TypeNode, std::set<int>>* typeNodeBoolVec);
+  void analyzeAssertions(AssertionPipeline* assertionsToPreprocess, std::set<TypeNode>* constructoredTypes, std::set<TypeNode>* arrayTypes, std::set<Node>* vars, std::set<Node>* boundVars, std::map<TypeNode, std::vector<Node>>* selectAssertions, std::set<Node>* arrays, std::set<Node>* storeNodes, std::set<Node>* selectNodes, std::set<Node>* functionNodes, std::set<TypeNode>* seqTypes, std::map<TypeNode, std::vector<Node>>* seqNthAssertions, std::set<Node>* seqs, std::set<Node>* seqNthNodes, std::set<TypeNode>* typesSet, std::map<TypeNode, int>* typeNodeMap, std::map<int, TypeNode>* typeNodeMapRev, std::map<TypeNode, std::set<int>>* typeNodeIntSet);
 
   void filterDT(std::set<TypeNode>* constructoredTypes, std::set<TypeNode>* arrayTypes, std::set<Node>* vars, std::map<TypeNode, std::vector<Node>>* selectAssertions, std::set<Node>* arrays, std::set<Node>* storeNodes, std::set<Node>* selectNodes, std::set<Node>* functionNodes, std::set<TypeNode>* seqTypes, std::map<TypeNode, std::vector<Node>>* seqNthAssertions, std::set<Node>* seqs, std::set<int>* cycleNodes, std::map<TypeNode, int>* typeNodeMap);
 
@@ -148,9 +148,9 @@ class Nesteddt : public PreprocessingPass
 
   void translateOperator(Node current, NodeManager* nm, std::map<Node, Node>* nodeMap,  std::map<Node, Node>* varsMap);
 
-  void addAssertionsSelect(std::set<Node>* selectNodes, std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap);
+  void addAssertionsSelect(std::set<Node>* selectNodes, std::set<Node>* boundVars, std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap);
 
-  void addAssertionsArrays(std::set<Node>* selectNodes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* arrays, std::map<Node, Node>* nodeMap);
+  void addAssertionsArrays(std::set<Node>* selectNodes, std::set<Node>* boundVars, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* arrays, std::map<Node, Node>* nodeMap);
 
   void addAssertionsSeqNth(std::set<Node>* seqNthNodes, std::map<TypeNode, std::vector<Node>>* seqNthIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap);
 
@@ -158,7 +158,7 @@ class Nesteddt : public PreprocessingPass
 
   void addAssertionsStore(std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* storeNodes, std::map<Node, Node>* nodeMap);
 
-  void addAssertionsArraysForall(std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, TypeNode>* resolvedMap, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap);
+  void addAssertionsArraysForall(std::map<TypeNode, std::vector<Node>>* arrayIndexes, std::set<Node>* boundVars, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, TypeNode>* resolvedMap, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap);
 
   void addAssertionsSeqsForall(std::map<TypeNode, std::vector<Node>>* seqNthIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, TypeNode>* resolvedMap, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap);
 

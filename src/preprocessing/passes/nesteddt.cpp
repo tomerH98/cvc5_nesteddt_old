@@ -38,6 +38,7 @@ PreprocessingPassResult Nesteddt::applyInternal(
     std::set<TypeNode> constructoredTypes;
     std::set<TypeNode> arrayTypes;
     std::set<Node> vars;
+    std::set<Node> boundVars;
     std::map<TypeNode, std::vector<Node>> selextIndexes;
     std::set<Node> arrays;
     std::set<Node> storeNodes;
@@ -51,7 +52,7 @@ PreprocessingPassResult Nesteddt::applyInternal(
     std::map<int, TypeNode> typeNodeMapRev;
     std::map<TypeNode, int> typeNodeMap;
     std::map<TypeNode, std::set<int>> typeNodeIntSet;
-    analyzeAssertions(assertionsToPreprocess, &constructoredTypes, &arrayTypes, &vars, &selextIndexes, &arrays, &storeNodes, &selectNodes, &functionNodes, &seqTypes, &seqNthIndexes, &seqs, &seqNthNodes, &typesSet, &typeNodeMap, &typeNodeMapRev, &typeNodeIntSet);
+    analyzeAssertions(assertionsToPreprocess, &constructoredTypes, &arrayTypes, &vars, &boundVars, &selextIndexes, &arrays, &storeNodes, &selectNodes, &functionNodes, &seqTypes, &seqNthIndexes, &seqs, &seqNthNodes, &typesSet, &typeNodeMap, &typeNodeMapRev, &typeNodeIntSet);
 
     Graph g;
     createGraph(&g, &typesSet, &typeNodeMap, &typeNodeMapRev);
@@ -124,10 +125,10 @@ PreprocessingPassResult Nesteddt::applyInternal(
     
     // Add the new assertions to the assertionsToPreprocess
     std::set<Node> newAssertions;
-    //addAssertionsArraysForall(&selextIndexes, nm, &newAssertions, &resolvedMap, &ufArrays, &nodeMap);
+    addAssertionsArraysForall(&selextIndexes,&boundVars ,nm, &newAssertions, &resolvedMap, &ufArrays, &nodeMap);
     //addAssertionsSeqsForall(&seqNthIndexes, nm, &newAssertions, &resolvedMap, &ufArrays, &nodeMap);
-    addAssertionsSelect(&selectNodes, &selextIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
-    addAssertionsArrays(&selectNodes, nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
+    addAssertionsSelect(&selectNodes, &boundVars, &selextIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
+    addAssertionsArrays(&selectNodes, &boundVars, nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
     addAssertionsStore(&selextIndexes, nm, &newAssertions, &ufArrays, &storeNodes, &nodeMap);
     addAssertionsSeqs(&seqs, nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
     addAssertionsSeqNth(&seqNthNodes, &seqNthIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
@@ -251,7 +252,7 @@ void Nesteddt::nodeCycleDetector(Graph* g, std::set<int>* cycleTypes, std::map<i
     }
 }
 
-void Nesteddt::analyzeAssertions(AssertionPipeline* assertionsToPreprocess, std::set<TypeNode>* constructoredTypes, std::set<TypeNode>* arrayTypes, std::set<Node>* vars, std::map<TypeNode, std::vector<Node>>* selectAssertions, std::set<Node>* arrays, std::set<Node>* storeNodes, std::set<Node>* selectNodes, std::set<Node>* functionNodes, std::set<TypeNode>* seqTypes, std::map<TypeNode, std::vector<Node>>* seqNthAssertions, std::set<Node>* seqs, std::set<Node>* seqNthNodes, std::set<TypeNode>* typesSet, std::map<TypeNode, int>* typeNodeMap, std::map<int, TypeNode>* typeNodeMapRev, std::map<TypeNode, std::set<int>>* typeNodeIntSet) {
+void Nesteddt::analyzeAssertions(AssertionPipeline* assertionsToPreprocess, std::set<TypeNode>* constructoredTypes, std::set<TypeNode>* arrayTypes, std::set<Node>* vars, std::set<Node>* boundVars, std::map<TypeNode, std::vector<Node>>* selectAssertions, std::set<Node>* arrays, std::set<Node>* storeNodes, std::set<Node>* selectNodes, std::set<Node>* functionNodes, std::set<TypeNode>* seqTypes, std::map<TypeNode, std::vector<Node>>* seqNthAssertions, std::set<Node>* seqs, std::set<Node>* seqNthNodes, std::set<TypeNode>* typesSet, std::map<TypeNode, int>* typeNodeMap, std::map<int, TypeNode>* typeNodeMapRev, std::map<TypeNode, std::set<int>>* typeNodeIntSet) {
     std::stack<Node> stack;
     std::set<Node> visitedNodes;
     std::map<TypeNode, std::set<Node>> selectAssertionsSet;
@@ -286,6 +287,9 @@ void Nesteddt::analyzeAssertions(AssertionPipeline* assertionsToPreprocess, std:
 
             if (current.isVar()){
                 vars->emplace(current);
+            }
+            if (current.isVar() && (current.getKind() == Kind::BOUND_VARIABLE)){
+                boundVars->emplace(current);
             }
             if (type.isDatatype()) {
                 constructoredTypes->emplace(type);
@@ -890,15 +894,28 @@ void Nesteddt::translateVar(Node current, std::map<Node, Node>* nodeMap, std::ma
 }
 
 void Nesteddt::translateOperator(Node current, NodeManager* nm, std::map<Node, Node>* nodeMap,  std::map<Node, Node>* varsMap){
+    Node translatedChild;
     // get the operator
     Node operatorNode = current.getOperator();
     auto it = (*varsMap).find(operatorNode);
     if (it != (*varsMap).end()) {
         operatorNode = it->second;
-    } 
+    }
     std::vector<TNode> newChildren;
-    for (size_t j = 0; j < current.getNumChildren(); ++j) {
-        newChildren.push_back((*nodeMap)[current[j]]);
+    if (current.getKind() == Kind::BOUND_VAR_LIST) {
+        for (size_t j = 0; j < current.getNumChildren(); ++j) {
+            translatedChild = (*nodeMap)[current[j]];
+            if (translatedChild.getKind() == Kind::APPLY_UF){
+                translatedChild = translatedChild[0];
+            }
+            newChildren.push_back(translatedChild);
+            Trace("nesteddttag")  <<  "translatedChild: " << j <<  " "<< translatedChild << std::endl;
+        }
+    }
+    else{
+        for (size_t j = 0; j < current.getNumChildren(); ++j) {
+            newChildren.push_back((*nodeMap)[current[j]]);
+        }
     }
     std::set<Kind> kindSet = {Kind::APPLY_SELECTOR, Kind::APPLY_CONSTRUCTOR, Kind::APPLY_UF};
     // check if the current node is an kindSet
@@ -912,16 +929,20 @@ void Nesteddt::translateOperator(Node current, NodeManager* nm, std::map<Node, N
     }
 }   
 
-void Nesteddt::addAssertionsSelect(std::set<Node>* selectNodes, std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap){
+void Nesteddt::addAssertionsSelect(std::set<Node>* selectNodes, std::set<Node>* boundVars, std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap){
     Node selector_application, assertion, selector, newSelectNode, originalArrayNode, newArrayNode, originalIndexNode, arrToCons, arrToConsApplication;
     // iterate over the selectNodes
     for (const auto& originalSelectNode : (*selectNodes)){  
         // check if originalSelectNode is in nodeMap
         Assert((nodeMap->find(originalSelectNode) != nodeMap->end()));
+
         newSelectNode = (*nodeMap)[originalSelectNode];
         originalIndexNode = originalSelectNode[1];
         originalArrayNode = originalSelectNode[0];
         newArrayNode = newSelectNode[0];
+        if (boundVars->find(originalArrayNode) != boundVars->end()){
+            continue;
+        }
         if (!newArrayNode.getType().isArray()){
             newArrayNode = newArrayNode[0];
         }
@@ -975,15 +996,24 @@ void Nesteddt::addAssertionsSelect(std::set<Node>* selectNodes, std::map<TypeNod
     } 
 }
 
-void Nesteddt::addAssertionsArraysForall(std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, TypeNode>* resolvedMap, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap) {
+void Nesteddt::addAssertionsArraysForall(std::map<TypeNode, std::vector<Node>>* arrayIndexes, std::set<Node>* boundVars, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, TypeNode>* resolvedMap, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap) {
     // iterate over the arrayIndexes and for each array find it in resolvedMap
     Node selector, selector_application, selectNode, newIndex, eq, andNode, nil, apply1, apply2, implies, uf, forall;
     TypeNode arrayType;
     std::vector<Node> oldIndexes;
     std::stringstream ss;
+    std::set<TypeNode> boundVarsTypes;
+    // Fill boundVarsTypes with the types of boundVars
+    for (const auto& var : *boundVars) {
+        boundVarsTypes.insert(var.getType());
+    }
     for (const auto& pair : (*arrayIndexes)) {
         arrayType = pair.first;
         oldIndexes = pair.second;
+
+        if (boundVarsTypes.find(arrayType) == boundVarsTypes.end()) {
+            continue;
+        }
 
         TypeNode resolvedArrayType = (*resolvedMap)[arrayType];
 
@@ -1086,11 +1116,14 @@ void Nesteddt::addAssertionsSeqsForall(std::map<TypeNode, std::vector<Node>>* se
 
 
 
-void Nesteddt::addAssertionsArrays(std::set<Node>* selectNodes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* arrays, std::map<Node, Node>* nodeMap){
+void Nesteddt::addAssertionsArrays(std::set<Node>* selectNodes, std::set<Node>* boundVars, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* arrays, std::map<Node, Node>* nodeMap){
     Node first, assertion, notAssertion, newArrayNode, consToArrFunc, arrToConsFunc, applyArrToCons;
     TNode opNode;
         // iterate over the arrays
     for (const auto& originalArray : (*arrays)) {
+        if (boundVars->find(originalArray) != boundVars->end()){
+            continue;
+        }
         Assert(nodeMap->find(originalArray) != nodeMap->end());
         newArrayNode = (*nodeMap)[originalArray];
         // check if the newArrayNode is a UF application
