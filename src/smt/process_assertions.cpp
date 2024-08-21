@@ -113,6 +113,12 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
     return true;
   }
 
+
+  if (options().smt.nesteddt)
+  {
+    applyPass("nesteddt", ap);
+  }
+
   if (options().bv.bvGaussElim)
   {
     applyPass("bv-gauss", ap);
@@ -162,11 +168,6 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
   if (options().smt.ackermann)
   {
     applyPass("ackermann", ap);
-  }
-
-  if (options().smt.nesteddt)
-  {
-    applyPass("nesteddt", ap);
   }
 
   Trace("smt") << " assertions     : " << ap.size() << endl;
