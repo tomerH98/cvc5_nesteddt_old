@@ -125,8 +125,6 @@ PreprocessingPassResult Nesteddt::applyInternal(
     
     // Add the new assertions to the assertionsToPreprocess
     std::set<Node> newAssertions;
-    addAssertionsArraysForall(&selextIndexes,&boundVars ,nm, &newAssertions, &resolvedMap, &ufArrays, &nodeMap);
-    //addAssertionsSeqsForall(&seqNthIndexes, nm, &newAssertions, &resolvedMap, &ufArrays, &nodeMap);
     addAssertionsSelect(&selectNodes, &boundVars, &selextIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
     addAssertionsArrays(&selectNodes, &boundVars, nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
     addAssertionsStore(&selextIndexes, nm, &newAssertions, &ufArrays, &storeNodes, &nodeMap);
@@ -996,124 +994,6 @@ void Nesteddt::addAssertionsSelect(std::set<Node>* selectNodes, std::set<Node>* 
     } 
 }
 
-void Nesteddt::addAssertionsArraysForall(std::map<TypeNode, std::vector<Node>>* arrayIndexes, std::set<Node>* boundVars, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, TypeNode>* resolvedMap, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap) {
-    // iterate over the arrayIndexes and for each array find it in resolvedMap
-    Node selector, selector_application, selectNode, newIndex, eq, andNode, nil, apply1, apply2, implies, uf, forall;
-    TypeNode arrayType;
-    std::vector<Node> oldIndexes;
-    std::stringstream ss;
-    std::set<TypeNode> boundVarsTypes;
-    // Fill boundVarsTypes with the types of boundVars
-    for (const auto& var : *boundVars) {
-        boundVarsTypes.insert(var.getType());
-    }
-    for (const auto& pair : (*arrayIndexes)) {
-        arrayType = pair.first;
-        oldIndexes = pair.second;
-
-        if (boundVarsTypes.find(arrayType) == boundVarsTypes.end()) {
-            continue;
-        }
-
-        TypeNode resolvedArrayType = (*resolvedMap)[arrayType];
-
-        ss.str("");
-        ss <<  "arr_forall";
-
-        Node consArray = nm->mkBoundVar(ss.str(), resolvedArrayType);
-        Node consToArr = (*ufArrays)[arrayType][0];
-        Node arrToCons = (*ufArrays)[arrayType][1];
-        Node regArray = nm->mkNode(Kind::APPLY_UF, consToArr, consArray);
-        DType newDType = resolvedArrayType.getDType();
-
-        std::vector<Node> eqNodes;
-        apply1 = nm->mkNode(Kind::APPLY_UF, consToArr, consArray);
-        // print apply1
-        Trace("nesteddttag") << "apply1: " << apply1 << std::endl;
-        apply2 = nm->mkNode(Kind::APPLY_UF, arrToCons, apply1);
-        // print apply2
-        Trace("nesteddttag") << "apply2: " << apply2 << std::endl;
-        eq = nm->mkNode(Kind::EQUAL, consArray, apply2);
-
-        // print eq
-        Trace("nesteddttag") << "__________________________________" <<  std::endl;
-        Trace("nesteddttag") << "eq: " << eq << std::endl;
-        forall = nm->mkNode(Kind::FORALL, nm->mkNode(Kind::BOUND_VAR_LIST, consArray), eq);
-        Trace("nesteddttag") << "forall: " << forall << std::endl;
-        newAssertions->insert(forall);
-
-        TypeNode oldIndexeType = arrayType.getArrayIndexType();
-        TypeNode oldElementType = arrayType.getArrayConstituentType();
-        TypeNode convertedIndexType = convertTypeNode(oldIndexeType, resolvedMap);
-        TypeNode convertedElementType = convertTypeNode(oldElementType, resolvedMap);
-        TypeNode newArrayType = nm->mkArrayType(convertedIndexType, convertedElementType);
-
-        ss.str("");
-        ss <<  "arr_forall0_5";
-
-        regArray = nm->mkBoundVar(ss.str(), newArrayType);
-        apply1 = nm->mkNode(Kind::APPLY_UF, arrToCons, regArray);
-        // print apply1
-        Trace("nesteddttag") << "apply1: " << apply1 << std::endl;
-        apply2 = nm->mkNode(Kind::APPLY_UF, consToArr, apply1);
-        // print apply2
-        Trace("nesteddttag") << "apply2: " << apply2 << std::endl;
-        eq = nm->mkNode(Kind::EQUAL, regArray, apply2);
-
-        forall = nm->mkNode(Kind::FORALL, nm->mkNode(Kind::BOUND_VAR_LIST, regArray), eq);
-        Trace("nesteddttag") << "forall: " << forall << std::endl;
-        newAssertions->insert(forall);
-
-        for (size_t i = 0, n = newDType.getNumConstructors(); i < n; ++i) {
-            const DTypeConstructor& cons = newDType[i];
-            if (cons.getNumArgs() == 0) {
-                ss.str("");
-                    ss << "arr_forall2";
-                Node consArray2 = nm->mkBoundVar(ss.str(), resolvedArrayType);
-                nil = nm->mkNode(Kind::APPLY_CONSTRUCTOR, cons.getConstructor());
-                eq = nm->mkNode(Kind::EQUAL, consArray2, nil);
-                eq = nm->mkNode(Kind::NOT, eq);
-                // print the implies 
-                Trace("nesteddttag") << "Nil: " << nil << " eq: " << eq << std::endl;
-                forall = nm->mkNode(Kind::FORALL, nm->mkNode(Kind::BOUND_VAR_LIST, consArray2), eq);
-                Trace("nesteddttag") << "forall: " << forall << std::endl;
-                newAssertions->insert(forall);
-            } else {
-                // print the constructor
-                Trace("nesteddttag") << "Constructor: " << cons << std::endl;
-                for (size_t j = 0; j < oldIndexes.size(); j++) {
-                    selector = cons[j + 1].getSelector();
-                    ss.str("");
-                    ss << "arr_forall3_" << j;
-                    Node consArray3 = nm->mkBoundVar(ss.str(), resolvedArrayType);
-                    selector_application = nm->mkNode(Kind::APPLY_SELECTOR, selector, consArray3);
-                    // print the selector and its application
-                    Trace("nesteddttag") << "Selector: " << selector << " Selector application: " << selector_application << std::endl;
-                    // make sure oldIndexes[j] is in nodeMap
-                    Assert(nodeMap->find(oldIndexes[j]) != nodeMap->end());
-                    newIndex = (*nodeMap)[oldIndexes[j]];
-
-                    // print the newIndex
-                    Trace("nesteddttag") << "New index: " << newIndex << std::endl;
-
-                    uf = nm->mkNode(Kind::APPLY_UF, consToArr, consArray3);
-                    selectNode = nm->mkNode(Kind::SELECT, uf, newIndex);
-                    eq = nm->mkNode(Kind::EQUAL, selector_application, selectNode);
-                    forall = nm->mkNode(Kind::FORALL, nm->mkNode(Kind::BOUND_VAR_LIST, consArray3), eq);
-                    Trace("nesteddttag") << "forall: " << forall << std::endl;
-                    newAssertions->insert(forall);
-                }
-            }
-        }
-
-        
-    }
-}
-
-void Nesteddt::addAssertionsSeqsForall(std::map<TypeNode, std::vector<Node>>* seqNthIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, TypeNode>* resolvedMap, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap) {
-    Trace("nesteddttag") << "Inside addAssertionsSeqsForall" << std::endl;
-}
-
 
 
 void Nesteddt::addAssertionsArrays(std::set<Node>* selectNodes, std::set<Node>* boundVars, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* arrays, std::map<Node, Node>* nodeMap){
@@ -1303,6 +1183,11 @@ void Nesteddt::addAssertionsStore(std::map<TypeNode, std::vector<Node>>* arrayIn
             convertedOldIndex = (*nodeMap)[oldIndex];
             applySelect = nm->mkNode(Kind::SELECT, newStoreNode, convertedOldIndex);
             selector_store = nm->mkNode(Kind::APPLY_SELECTOR, selector, newStoreCons);
+            assertion = nm->mkNode(Kind::EQUAL, selector_store, applySelect);
+            newAssertions->insert(assertion);
+
+            applySelect = nm->mkNode(Kind::SELECT, newArray, convertedOldIndex);
+            selector_store = nm->mkNode(Kind::APPLY_SELECTOR, selector, newArrayCons);
             assertion = nm->mkNode(Kind::EQUAL, selector_store, applySelect);
             newAssertions->insert(assertion);
         }
