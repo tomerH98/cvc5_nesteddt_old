@@ -157,11 +157,6 @@ class Nesteddt : public PreprocessingPass
   void addAssertionsSeqs(std::set<Node>* seqNthNodes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* seqs, std::map<Node, Node>* nodeMap);
 
   void addAssertionsStore(std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* storeNodes, std::map<Node, Node>* nodeMap);
-
-  void addAssertionsArraysForall(std::map<TypeNode, std::vector<Node>>* arrayIndexes, std::set<Node>* boundVars, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, TypeNode>* resolvedMap, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap);
-
-  void addAssertionsSeqsForall(std::map<TypeNode, std::vector<Node>>* seqNthIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, TypeNode>* resolvedMap, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap);
-
 };
 
 }  // namespace passes
