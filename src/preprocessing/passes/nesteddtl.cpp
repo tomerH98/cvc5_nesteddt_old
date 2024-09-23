@@ -125,11 +125,8 @@ PreprocessingPassResult Nesteddtl::applyInternal(
     
     // Add the new assertions to the assertionsToPreprocess
     std::set<Node> newAssertions;
-    addAssertionsSelect(&selectNodes, &cycleNodes, &typeNodeMap, &boundVars, &selextIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
     addAssertionsArrays(&selectNodes, &boundVars, nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
-    addAssertionsStore(&selextIndexes, nm, &newAssertions, &ufArrays, &storeNodes, &nodeMap);
     addAssertionsSeqs(&seqs, nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
-    addAssertionsSeqNth(&seqNthNodes, &cycleNodes, &typeNodeMap , &seqNthIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
     
 
     for (const auto& newAssertion : newAssertions) {
@@ -563,67 +560,59 @@ void Nesteddtl::defineArraySeqInMap(std::map<TypeNode, DType>* mapDType, std::ma
         Assert(it != (*mapDType).end());
         // The key exists in the mapDType, you can safely access it
         DType& newDType = it->second;
+
+        auto itTypeNode = (*mapTypeNode).find(arrayType);
+        Assert(itTypeNode != (*mapTypeNode).end());
+        TypeNode& newArrType = itTypeNode->second;
         // Get the DType of the arrayType
         TypeNode indexType = arrayType.getArrayIndexType();
         TypeNode elementType = arrayType.getArrayConstituentType();
         // Add an empty constructor
         ss.str("");
-        //ss  <<  "nil_"  <<  indexType  <<  "_"  <<  elementType;
-        //std::shared_ptr<DTypeConstructor> nil = std::make_shared<DTypeConstructor>(ss.str());
-        //newDType.addConstructor(nil);
+        ss  <<  "nil_"  <<  indexType  <<  "_"  <<  elementType;
+        std::shared_ptr<DTypeConstructor> nil = std::make_shared<DTypeConstructor>(ss.str());
+        newDType.addConstructor(nil);
         // Add a constructor for the array's elements
         std::shared_ptr<DTypeConstructor> cons = std::make_shared<DTypeConstructor>("cons");
-        // add the id as an argument to the constructor
-        cons->addArg("id", nm->integerType());
         // Iterate over the select assertions of the arrayType
         TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
-        auto it2 = (*selectAssertions).find(arrayType);
-        if (it2 != (*selectAssertions).end()) {
-            for (size_t i=0, element_num = it2->second.size(); i < element_num; i++){
-                // Add new field for each index
-                ss.str("");;
-                ss  <<  "index_"  <<  i;
-                cons->addArg(ss.str(), newElementType);
-            }
-        }       
+        cons->addArg("cdr", newElementType);
+        cons->addArg("car", newArrType);
+           
         newDType.addConstructor(cons);
         // Insert the new type into the mapDType
         (*mapDType).insert(std::pair<TypeNode, DType>(arrayType, newDType));
     }
 
-    // Iterate over arrayTypes
     for (const auto& seqType : (*seqTypes)) {
         // Get the arrayType's DType from the mapDType
         auto it = (*mapDType).find(seqType);
         Assert(it != (*mapDType).end());
         // The key exists in the mapDType, you can safely access it
         DType& newDType = it->second;
+
+        auto itTypeNode = (*mapTypeNode).find(seqType);
+        Assert(itTypeNode != (*mapTypeNode).end());
+        TypeNode& newSeqType = itTypeNode->second;
         // Get the DType of the arrayType
         TypeNode elementType = seqType.getSequenceElementType();
-        TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
         // Add an empty constructor
-        //ss.str("");
-        //ss  <<  "nil_"  <<  newElementType;
-        //std::shared_ptr<DTypeConstructor> nil = std::make_shared<DTypeConstructor>(ss.str());
-        //newDType.addConstructor(nil);
+        ss.str("");
+        ss  <<  "nil_" <<  elementType;
+        std::shared_ptr<DTypeConstructor> nil = std::make_shared<DTypeConstructor>(ss.str());
+        newDType.addConstructor(nil);
         // Add a constructor for the array's elements
         std::shared_ptr<DTypeConstructor> cons = std::make_shared<DTypeConstructor>("cons");
-        // add the id as an argument to the constructor
-        cons->addArg("id", nm->integerType());
-        
-        auto it2 = (*seqNthAssertions).find(seqType);
-        if (it2 != (*seqNthAssertions).end()) {
-            for (size_t i=0, element_num = it2->second.size(); i < element_num; i++){
-                // Add new field for each index
-                ss.str("");;
-                ss  <<  "index_"  <<  i;
-                cons->addArg(ss.str(), newElementType);
-            }
-        }       
+        // Iterate over the select assertions of the arrayType
+        TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
+        cons->addArg("cdr", newElementType);
+        cons->addArg("car", newSeqType);
+           
         newDType.addConstructor(cons);
         // Insert the new type into the mapDType
-        (*mapDType).insert(std::pair<TypeNode, DType>(seqType, newDType));
+        (*mapDType).insert(std::pair<TypeNode, DType>(newSeqType, newDType));
     }
+
 }
 
 void Nesteddtl::defineConstructoredInMap(std::map<TypeNode, DType>* mapDType, std::map<TypeNode, TypeNode>* mapTypeNode, NodeManager* nm){
@@ -927,79 +916,6 @@ void Nesteddtl::translateOperator(Node current, NodeManager* nm, std::map<Node, 
     }
 }   
 
-void Nesteddtl::addAssertionsSelect(std::set<Node>* selectNodes, std::set<int>* cycleNodes, std::map<TypeNode, int>* typeNodeMap, std::set<Node>* boundVars, std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap){
-    Node selector_application, assertion, selector, newSelectNode, originalArrayNode, newArrayNode, originalIndexNode, arrToCons, arrToConsApplication;
-    // iterate over the selectNodes
-    for (const auto& originalSelectNode : (*selectNodes)){ 
-        originalIndexNode = originalSelectNode[1];
-        originalArrayNode = originalSelectNode[0];
-        if (boundVars->find(originalArrayNode) != boundVars->end()){
-            continue;
-        }
-
-        // check if originalSelectNode is in nodeMap
-        Assert((nodeMap->find(originalSelectNode) != nodeMap->end()));
-
-        newSelectNode = (*nodeMap)[originalSelectNode];
-        newArrayNode = newSelectNode[0];
-        if (boundVars->find(originalArrayNode) != boundVars->end()){
-            continue;
-        }
-        if (!newArrayNode.getType().isArray()){
-            newArrayNode = newArrayNode[0];
-        }
-        if (ufArrays->find(originalArrayNode.getType()) == ufArrays->end()){
-            continue;
-        }
-
-        arrToCons = (*ufArrays)[originalArrayNode.getType()][1];
-        arrToConsApplication = nm->mkNode(Kind::APPLY_UF, arrToCons, newArrayNode);
-        // insert the equality between the recursive element and the indexed element
-        const DType& newDType = arrToConsApplication.getType().getDType();
-        // iterate over the constructors    
-        for (size_t i = 0, n = newDType.getNumConstructors(); i < n; ++i) {
-            const DTypeConstructor& cons = newDType[i];
-            if (cons.getNumArgs() == 0) {
-                continue;
-            }
-            if (newArrayNode.getKind() == Kind::APPLY_UF){
-                Node consToArrFunc = (*ufArrays)[originalArrayNode.getType()][0];
-                // check if the function is consToArrFunc
-                if (newArrayNode.getOperator() == consToArrFunc){      
-                    arrToConsApplication = newArrayNode[0];
-                }
-            }
-        
-            std::vector<Node> oldIndexes = (*arrayIndexes)[originalArrayNode.getType()];
-            for (size_t j = 0; j < oldIndexes.size(); j++){
-                if (oldIndexes[j] == originalIndexNode){
-                    selector = cons[j+1].getSelector();
-                    selector_application = nm->mkNode(Kind::APPLY_SELECTOR, selector, arrToConsApplication);
-                    if (newSelectNode.getType().isArray() && !selector_application.getType().isArray()){
-                        // find current in ufArrays
-                        Assert(ufArrays->find(originalSelectNode.getType()) != ufArrays->end()); 
-                        Node consToNew = (*ufArrays)[originalSelectNode.getType()][0];
-                        TypeNode t2 = consToNew.getType().getArgTypes()[0];
-                        // check if t1 is equal to t2
-                        assert (selector_application.getType() == t2);
-                        selector_application = nm->mkNode(Kind::APPLY_UF, consToNew, selector_application);
-                    }
-                    assertion = nm->mkNode(Kind::EQUAL, selector_application, newSelectNode);
-                    if (selector_application.hasOperator() && newSelectNode.hasOperator()){
-                        if (selector_application.getOperator() == newSelectNode.getOperator()){
-                            assertion = nm->mkNode(Kind::EQUAL, selector_application[0], newSelectNode[0]);
-                        }
-                    }
-                    newAssertions->insert(assertion);
-                    break;
-                }
-            }      
-        }        
-    } 
-}
-
-
-
 void Nesteddtl::addAssertionsArrays(std::set<Node>* selectNodes, std::set<Node>* boundVars, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* arrays, std::map<Node, Node>* nodeMap){
     Node first, assertion, notAssertion, newArrayNode, consToArrFunc, arrToConsFunc, applyArrToCons;
     TNode opNode;
@@ -1021,93 +937,18 @@ void Nesteddtl::addAssertionsArrays(std::set<Node>* selectNodes, std::set<Node>*
 
                 assertion = nm->mkNode(Kind::EQUAL, newArrayNode[0], applyArrToCons);
                 newAssertions->insert(assertion);
-
-                // insert it is not nil
-                const DType& newDType = applyArrToCons.getType().getDType();
-                size_t numConstructors = newDType.getNumConstructors();
-                for (size_t i = 0; i < numConstructors; ++i) {
-                    const DTypeConstructor& constructor = newDType[i];
-                    if (constructor.getNumArgs() == 0) {
-                        // create a TNode from the constructor
-                        opNode = constructor.getConstructor();
-                        first = nm->mkNode(Kind::APPLY_CONSTRUCTOR, opNode);
-                        notAssertion = nm->mkNode(Kind::NOT, nm->mkNode(Kind::EQUAL, newArrayNode[0], first));
-                        newAssertions->insert(notAssertion);
-                        break;
-                    }
-                }
-            }
-        }
-    }  
-}
-
-void Nesteddtl::addAssertionsSeqNth(std::set<Node>* seqNthNodes, std::set<int>* cycleNodes, std::map<TypeNode, int>* typeNodeMap, std::map<TypeNode, std::vector<Node>>* seqNthIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap){
-    Node selector_application, assertion, selector, newSeqNthNode, originalSeqNode, newSeqNode, originalIndexNode, arrToCons, arrToConsApplication;
-    // iterate over the selectNodes
-    for (const auto& originalSeqNthNode : (*seqNthNodes)){  
-        originalIndexNode = originalSeqNthNode[1];
-        originalSeqNode = originalSeqNthNode[0];
-        if (cycleNodes->find((*typeNodeMap)[originalSeqNode.getType()]) == cycleNodes->end()){
-            continue;
-        }
-
-         // check if originalSelectNode is in nodeMap
-        Assert((nodeMap->find(originalSeqNthNode) != nodeMap->end()));
-        newSeqNthNode = (*nodeMap)[originalSeqNthNode];
-        newSeqNode = newSeqNthNode[0];
-        if (!newSeqNode.getType().isSequence()){
-            newSeqNode = newSeqNode[0];
-        }
-        
-        // check if originalArrayNode.getType() is not in ufArrays
-        Assert(ufArrays->find(originalSeqNode.getType()) != ufArrays->end());
-
-        arrToCons = (*ufArrays)[originalSeqNode.getType()][1];
-        arrToConsApplication = nm->mkNode(Kind::APPLY_UF, arrToCons, newSeqNode);
-        // insert the equality between the recursive element and the indexed element
-        const DType& newDType = arrToConsApplication.getType().getDType();
-        // iterate over the constructors    
-        for (size_t i = 0, n = newDType.getNumConstructors(); i < n; ++i) {
-            const DTypeConstructor& cons = newDType[i];
-            if (cons.getNumArgs() == 0) {
                 continue;
             }
-            if (newSeqNode.getKind() == Kind::APPLY_UF){
-                Node consToArrFunc = (*ufArrays)[originalSeqNode.getType()][0];
-                // check if the function is consToArrFunc
-                if (newSeqNode.getOperator() == consToArrFunc){      
-                    arrToConsApplication = newSeqNode[0];
-                }
-            }
-            Trace("nesteddtltag")  <<  "originalIndexNode: "  <<  originalIndexNode  <<  std::endl;
-        
-            std::vector<Node> oldIndexes = (*seqNthIndexes)[originalSeqNode.getType()];
-            for (size_t j = 0; j < oldIndexes.size(); j++){
-                if (oldIndexes[j] == originalIndexNode){
-                    Trace("nesteddtltag")  <<  "oldIndexes[j]: "  <<  oldIndexes[j]  <<  std::endl;
-                    selector = cons[j+1].getSelector();
-                    selector_application = nm->mkNode(Kind::APPLY_SELECTOR, selector, arrToConsApplication);
-                    if (newSeqNthNode.getType().isSequence() && !selector_application.getType().isSequence()){
-                        // find current in ufArrays
-                        Assert(ufArrays->find(originalSeqNthNode.getType()) != ufArrays->end()); 
-                        Node consToNew = (*ufArrays)[originalSeqNthNode.getType()][0];
-                        TypeNode t2 = consToNew.getType().getArgTypes()[0];
-                        // check if t1 is equal to t2
-                        assert (selector_application.getType() == t2);
-                        selector_application = nm->mkNode(Kind::APPLY_UF, consToNew, selector_application);
-                    }
-                    assertion = nm->mkNode(Kind::EQUAL, selector_application, newSeqNthNode);
-                    if (selector_application.hasOperator() && newSeqNthNode.hasOperator()){
-                        if (selector_application.getOperator() == newSeqNthNode.getOperator()){
-                            assertion = nm->mkNode(Kind::EQUAL, selector_application[0], newSeqNthNode[0]);
-                        }
-                    }
-                    newAssertions->insert(assertion);
-                    break;
-                }
-            }      
-        } 
-    } 
+        }
+        consToArrFunc = (*ufArrays)[originalArray.getType()][0];
+        arrToConsFunc = (*ufArrays)[originalArray.getType()][1];
+
+        applyArrToCons = nm->mkNode(Kind::APPLY_UF, arrToConsFunc, newArrayNode);
+        Node arrAgain = nm->mkNode(Kind::APPLY_UF, consToArrFunc, applyArrToCons);
+
+        assertion = nm->mkNode(Kind::EQUAL, newArrayNode, arrAgain);
+        newAssertions->insert(assertion);
+    }  
 }
 
 void Nesteddtl::addAssertionsSeqs(std::set<Node>* seqNthNodes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* seqs, std::map<Node, Node>* nodeMap){
@@ -1128,80 +969,20 @@ void Nesteddtl::addAssertionsSeqs(std::set<Node>* seqNthNodes, NodeManager* nm, 
 
                 assertion = nm->mkNode(Kind::EQUAL, newSeqNode[0], applyArrToCons);
                 newAssertions->insert(assertion);
-
-                // insert it is not nil
-                const DType& newDType = applyArrToCons.getType().getDType();
-                size_t numConstructors = newDType.getNumConstructors();
-                for (size_t i = 0; i < numConstructors; ++i) {
-                    const DTypeConstructor& constructor = newDType[i];
-                    if (constructor.getNumArgs() == 0) {
-                        // create a TNode from the constructor
-                        opNode = constructor.getConstructor();
-                        first = nm->mkNode(Kind::APPLY_CONSTRUCTOR, opNode);
-                        notAssertion = nm->mkNode(Kind::NOT, nm->mkNode(Kind::EQUAL, newSeqNode[0], first));
-                        newAssertions->insert(notAssertion);
-                        break;
-                    }
-                }
+                continue;
             }
         }
+        consToArrFunc = (*ufArrays)[originalSeq.getType()][0];
+        arrToConsFunc = (*ufArrays)[originalSeq.getType()][1];
+
+        applyArrToCons = nm->mkNode(Kind::APPLY_UF, arrToConsFunc, newSeqNode);
+        Node arrAgain = nm->mkNode(Kind::APPLY_UF, consToArrFunc, applyArrToCons);
+
+        assertion = nm->mkNode(Kind::EQUAL, newSeqNode, arrAgain);
+        newAssertions->insert(assertion);
     }  
 }
 
-void Nesteddtl::addAssertionsStore(std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* storeNodes, std::map<Node, Node>* nodeMap){
-    Node assertion, arrToConsFunc, newStoreNode, newArray, newIndex, newValue;
-	Node array, index, value, newArrayCons, newStoreCons, oldIndex, selector, convertedOldIndex, applySelect, selector_store;
-	TypeNode arrayType;
-    //iterate over the storeNodes
-    for (const auto& storeNode : (*storeNodes)) {
-        //find the storeNode in the nodeMap
-        Assert(nodeMap->find(storeNode) != nodeMap->end());
-        newStoreNode = (*nodeMap)[storeNode];
-
-        // get the newStoreNode's children
-        newArray = newStoreNode[0];
-        newIndex = newStoreNode[1];
-        newValue = newStoreNode[2];
-
-        // get the storeNode's children
-        array = storeNode[0];
-        index = storeNode[1];
-        value = storeNode[2];
-        // get the array's type
-        arrayType = array.getType();
-        // check if the arrayType is in ufArrays
-        Assert(ufArrays->find(arrayType) != ufArrays->end());
-        arrToConsFunc = (*ufArrays)[arrayType][1];
-
-        // apply  the arrToConsFunc to the newArray
-        newArrayCons = nm->mkNode(Kind::APPLY_UF, arrToConsFunc, newArray);
-        newStoreCons = nm->mkNode(Kind::APPLY_UF, arrToConsFunc, newStoreNode);
-
-        const DType& newDType = newArrayCons.getType().getDType();
-        const DTypeConstructor& cons = newDType[0];
-        // check if the arrayType is not in the arrayIndexes
-        Assert(arrayIndexes->find(arrayType) != arrayIndexes->end());
-        std::vector<Node> oldIndexes = (*arrayIndexes)[arrayType];
-        // iterate over the oldIndexes
-        for (size_t i = 0; i < oldIndexes.size(); i++){
-            oldIndex = oldIndexes[i];
-            selector = cons[i+1].getSelector();
-
-            Assert(nodeMap->find(oldIndex) != nodeMap->end());
-            convertedOldIndex = (*nodeMap)[oldIndex];
-            applySelect = nm->mkNode(Kind::SELECT, newStoreNode, convertedOldIndex);
-            selector_store = nm->mkNode(Kind::APPLY_SELECTOR, selector, newStoreCons);
-            assertion = nm->mkNode(Kind::EQUAL, selector_store, applySelect);
-            newAssertions->insert(assertion);
-
-            applySelect = nm->mkNode(Kind::SELECT, newArray, convertedOldIndex);
-            selector_store = nm->mkNode(Kind::APPLY_SELECTOR, selector, newArrayCons);
-            assertion = nm->mkNode(Kind::EQUAL, selector_store, applySelect);
-            newAssertions->insert(assertion);
-        }
-        
-    }
-}
 }  // namespace passes
 }  // namespace preprocessing
 }  // namespace cvc5::internal

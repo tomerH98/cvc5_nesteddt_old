@@ -1021,23 +1021,17 @@ void Nesteddt::addAssertionsArrays(std::set<Node>* selectNodes, std::set<Node>* 
 
                 assertion = nm->mkNode(Kind::EQUAL, newArrayNode[0], applyArrToCons);
                 newAssertions->insert(assertion);
-
-                // insert it is not nil
-                const DType& newDType = applyArrToCons.getType().getDType();
-                size_t numConstructors = newDType.getNumConstructors();
-                for (size_t i = 0; i < numConstructors; ++i) {
-                    const DTypeConstructor& constructor = newDType[i];
-                    if (constructor.getNumArgs() == 0) {
-                        // create a TNode from the constructor
-                        opNode = constructor.getConstructor();
-                        first = nm->mkNode(Kind::APPLY_CONSTRUCTOR, opNode);
-                        notAssertion = nm->mkNode(Kind::NOT, nm->mkNode(Kind::EQUAL, newArrayNode[0], first));
-                        newAssertions->insert(notAssertion);
-                        break;
-                    }
-                }
+                continue;
             }
         }
+        consToArrFunc = (*ufArrays)[originalArray.getType()][0];
+        arrToConsFunc = (*ufArrays)[originalArray.getType()][1];
+
+        applyArrToCons = nm->mkNode(Kind::APPLY_UF, arrToConsFunc, newArrayNode);
+        Node arrAgain = nm->mkNode(Kind::APPLY_UF, consToArrFunc, applyArrToCons);
+
+        assertion = nm->mkNode(Kind::EQUAL, newArrayNode, arrAgain);
+        newAssertions->insert(assertion);
     }  
 }
 
@@ -1128,23 +1122,17 @@ void Nesteddt::addAssertionsSeqs(std::set<Node>* seqNthNodes, NodeManager* nm, s
 
                 assertion = nm->mkNode(Kind::EQUAL, newSeqNode[0], applyArrToCons);
                 newAssertions->insert(assertion);
-
-                // insert it is not nil
-                const DType& newDType = applyArrToCons.getType().getDType();
-                size_t numConstructors = newDType.getNumConstructors();
-                for (size_t i = 0; i < numConstructors; ++i) {
-                    const DTypeConstructor& constructor = newDType[i];
-                    if (constructor.getNumArgs() == 0) {
-                        // create a TNode from the constructor
-                        opNode = constructor.getConstructor();
-                        first = nm->mkNode(Kind::APPLY_CONSTRUCTOR, opNode);
-                        notAssertion = nm->mkNode(Kind::NOT, nm->mkNode(Kind::EQUAL, newSeqNode[0], first));
-                        newAssertions->insert(notAssertion);
-                        break;
-                    }
-                }
+                continue;
             }
         }
+        consToArrFunc = (*ufArrays)[originalSeq.getType()][0];
+        arrToConsFunc = (*ufArrays)[originalSeq.getType()][1];
+
+        applyArrToCons = nm->mkNode(Kind::APPLY_UF, arrToConsFunc, newSeqNode);
+        Node arrAgain = nm->mkNode(Kind::APPLY_UF, consToArrFunc, applyArrToCons);
+
+        assertion = nm->mkNode(Kind::EQUAL, newSeqNode, arrAgain);
+        newAssertions->insert(assertion);
     }  
 }
 
