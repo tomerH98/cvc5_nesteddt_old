@@ -125,11 +125,11 @@ PreprocessingPassResult Nesteddt::applyInternal(
     
     // Add the new assertions to the assertionsToPreprocess
     std::set<Node> newAssertions;
-    addAssertionsSelect(&selectNodes, &boundVars, &selextIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
+    addAssertionsSelect(&selectNodes, &cycleNodes, &typeNodeMap, &boundVars, &selextIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
     addAssertionsArrays(&selectNodes, &boundVars, nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
     addAssertionsStore(&selextIndexes, nm, &newAssertions, &ufArrays, &storeNodes, &nodeMap);
     addAssertionsSeqs(&seqs, nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
-    addAssertionsSeqNth(&seqNthNodes, &seqNthIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
+    addAssertionsSeqNth(&seqNthNodes, &cycleNodes, &typeNodeMap , &seqNthIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
     
 
     for (const auto& newAssertion : newAssertions) {
@@ -927,16 +927,20 @@ void Nesteddt::translateOperator(Node current, NodeManager* nm, std::map<Node, N
     }
 }   
 
-void Nesteddt::addAssertionsSelect(std::set<Node>* selectNodes, std::set<Node>* boundVars, std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap){
+void Nesteddt::addAssertionsSelect(std::set<Node>* selectNodes, std::set<int>* cycleNodes, std::map<TypeNode, int>* typeNodeMap, std::set<Node>* boundVars, std::map<TypeNode, std::vector<Node>>* arrayIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap){
     Node selector_application, assertion, selector, newSelectNode, originalArrayNode, newArrayNode, originalIndexNode, arrToCons, arrToConsApplication;
     // iterate over the selectNodes
-    for (const auto& originalSelectNode : (*selectNodes)){  
+    for (const auto& originalSelectNode : (*selectNodes)){ 
+        originalIndexNode = originalSelectNode[1];
+        originalArrayNode = originalSelectNode[0];
+        if (boundVars->find(originalArrayNode) != boundVars->end()){
+            continue;
+        }
+
         // check if originalSelectNode is in nodeMap
         Assert((nodeMap->find(originalSelectNode) != nodeMap->end()));
 
         newSelectNode = (*nodeMap)[originalSelectNode];
-        originalIndexNode = originalSelectNode[1];
-        originalArrayNode = originalSelectNode[0];
         newArrayNode = newSelectNode[0];
         if (boundVars->find(originalArrayNode) != boundVars->end()){
             continue;
@@ -1037,15 +1041,19 @@ void Nesteddt::addAssertionsArrays(std::set<Node>* selectNodes, std::set<Node>* 
     }  
 }
 
-void Nesteddt::addAssertionsSeqNth(std::set<Node>* seqNthNodes, std::map<TypeNode, std::vector<Node>>* seqNthIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap){
+void Nesteddt::addAssertionsSeqNth(std::set<Node>* seqNthNodes, std::set<int>* cycleNodes, std::map<TypeNode, int>* typeNodeMap, std::map<TypeNode, std::vector<Node>>* seqNthIndexes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::map<Node, Node>* nodeMap){
     Node selector_application, assertion, selector, newSeqNthNode, originalSeqNode, newSeqNode, originalIndexNode, arrToCons, arrToConsApplication;
     // iterate over the selectNodes
     for (const auto& originalSeqNthNode : (*seqNthNodes)){  
-        // check if originalSelectNode is in nodeMap
-        Assert((nodeMap->find(originalSeqNthNode) != nodeMap->end()));
-        newSeqNthNode = (*nodeMap)[originalSeqNthNode];
         originalIndexNode = originalSeqNthNode[1];
         originalSeqNode = originalSeqNthNode[0];
+        if (cycleNodes->find((*typeNodeMap)[originalSeqNode.getType()]) == cycleNodes->end()){
+            continue;
+        }
+
+         // check if originalSelectNode is in nodeMap
+        Assert((nodeMap->find(originalSeqNthNode) != nodeMap->end()));
+        newSeqNthNode = (*nodeMap)[originalSeqNthNode];
         newSeqNode = newSeqNthNode[0];
         if (!newSeqNode.getType().isSequence()){
             newSeqNode = newSeqNode[0];
