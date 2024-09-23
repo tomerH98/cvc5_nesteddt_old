@@ -31,6 +31,7 @@
 #include "theory/theory_model.h"
 #include "theory/trust_substitutions.h"
 #include "theory/valuation.h"
+#include "theory/arrays/my_data_storage.h"
 
 using namespace std;
 
@@ -652,6 +653,9 @@ void TheoryArrays::checkWeakEquiv(bool arraysMerged) {
  */
 void TheoryArrays::preRegisterTermInternal(TNode node)
 {
+  cvc5::internal::MyDataStorage& storage = cvc5::internal::MyDataStorage::getInstance();
+  std::cout << storage.check << std::endl;
+
   if (d_state.isInConflict())
   {
     return;

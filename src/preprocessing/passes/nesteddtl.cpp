@@ -1,4 +1,5 @@
 #include "preprocessing/passes/nesteddtl.h"
+#include "theory/arrays/my_data_storage.h"
 #include "expr/node.h"
 #include "preprocessing/assertion_pipeline.h"
 #include "preprocessing/preprocessing_pass_context.h"
@@ -127,7 +128,9 @@ PreprocessingPassResult Nesteddtl::applyInternal(
     std::set<Node> newAssertions;
     addAssertionsArrays(&selectNodes, &boundVars, nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
     addAssertionsSeqs(&seqs, nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
-    
+
+    cvc5::internal::MyDataStorage& storage = cvc5::internal::MyDataStorage::getInstance();
+    storage.check = 3;
 
     for (const auto& newAssertion : newAssertions) {
         assertionsToPreprocess->push_back(newAssertion);
