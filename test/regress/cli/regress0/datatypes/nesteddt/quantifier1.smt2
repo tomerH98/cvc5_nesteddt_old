@@ -2,7 +2,7 @@
 ; EXPECT: unsat
 ; DISABLE-TESTER: model
 (set-logic ALL)
-(set-option :dt-nested-rec true)
+;(set-option :dt-nested-rec true)
 
 (declare-datatypes ((T 0)) (((nT) (cons (id Int) (arr (Array Int T)) ) ) ))
 

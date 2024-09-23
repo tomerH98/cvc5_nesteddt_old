@@ -21,6 +21,7 @@
 #include "expr/array_store_all.h"
 #include "expr/kind.h"
 #include "expr/node_algorithm.h"
+#include "expr/skolem_manager.h"
 #include "options/arrays_options.h"
 #include "options/smt_options.h"
 #include "proof/proof_checker.h"
