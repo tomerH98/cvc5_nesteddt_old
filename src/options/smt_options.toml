@@ -18,6 +18,14 @@ name   = "SMT Layer"
   default    = "false"
   help       = "right now, convert all to false" 
 
+  [[option]]
+  name       = "nesteddtl"
+  category   = "regular"
+  long       = "nesteddtl"
+  type       = "bool"
+  default    = "false"
+  help       = "right now, convert all to false" 
+
 [[option]]
   name       = "simplificationMode"
   alias      = ["simplification-mode"]

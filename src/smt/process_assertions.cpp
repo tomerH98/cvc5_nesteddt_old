@@ -119,6 +119,11 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
     applyPass("nesteddt", ap);
   }
 
+  if (options().smt.nesteddtl)
+  {
+    applyPass("nesteddtl", ap);
+  }
+
   if (options().bv.bvGaussElim)
   {
     applyPass("bv-gauss", ap);

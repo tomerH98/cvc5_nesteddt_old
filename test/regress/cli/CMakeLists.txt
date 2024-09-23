@@ -1056,7 +1056,7 @@ set(regress_0_tests
   regress0/datatypes/nesteddt/regular_rdt4.smt2
   regress0/datatypes/nesteddt/seq_test.smt2
   regress0/datatypes/nesteddt/seq_test10.smt2
-  regress0/datatypes/nesteddt/seq_test100.smt2
+  regress0/datatypes/nesteddt/seq_test50.smt2
   regress0/datatypes/nesteddt/simple.smt2
   regress0/datatypes/nesteddt/simple_sat.smt2
   regress0/datatypes/nesteddt/store_test.smt2

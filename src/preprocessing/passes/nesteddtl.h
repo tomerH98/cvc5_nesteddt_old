@@ -1,5 +1,5 @@
-#ifndef CVC5__PREPROCESSING__PASSES__NESTEDDT_H
-#define CVC5__PREPROCESSING__PASSES__NESTEDDT_H
+#ifndef CVC5__PREPROCESSING__PASSES__NESTEDDTL_H
+#define CVC5__PREPROCESSING__PASSES__NESTEDDTL_H
 
 #include "cvc5_private.h"
 #include "preprocessing/preprocessing_pass.h"
@@ -25,17 +25,17 @@ namespace preprocessing {
 namespace passes {
 
 /**
- * Class implementing a simplified version of Nesteddt preprocessing pass.
+ * Class implementing a simplified version of Nesteddtl preprocessing pass.
  */
-class Nesteddt : public PreprocessingPass
+class Nesteddtl : public PreprocessingPass
 {
  public:
   /**
-   * Constructor for Nesteddt pass.
+   * Constructor for Nesteddtl pass.
    *
    * @param preprocContext The preprocessing context
    */
-  Nesteddt(PreprocessingPassContext* preprocContext);
+  Nesteddtl(PreprocessingPassContext* preprocContext);
 
  protected:
   /**
@@ -163,4 +163,4 @@ class Nesteddt : public PreprocessingPass
 }  // namespace preprocessing
 }  // namespace cvc5::internal
 
-#endif /* CVC5__PREPROCESSING__PASSES__NESTEDDT_H */
+#endif /* CVC5__PREPROCESSING__PASSES__NESTEDDTL_H */
