@@ -66,84 +66,13 @@ PreprocessingPassResult Nesteddt::applyInternal(
         Trace("nesteddttag")  <<  "Cycle node type: "  <<  typeNodeMapRev[cycleNode]  <<  std::endl;
     }
 
-    filterDT(&constructoredTypes, &arrayTypes, &vars, &selextIndexes, &arrays, &storeNodes, &selectNodes, &functionNodes, &seqTypes, &seqNthIndexes, &seqs, &cycleNodes, &typeNodeMap);
-    
-    // Create a map between the constructored types and arrays and the new types
-    std::map<TypeNode, DType> mapDType;
-    std::map<TypeNode, TypeNode> mapTypeNode;
-    declareNewTypes(&constructoredTypes, &arrayTypes, &seqTypes, &mapDType, &mapTypeNode, nm);
-
-    // Define the array types in the map
-    defineArraySeqInMap(&mapDType, &mapTypeNode, &arrayTypes, &seqTypes, &selextIndexes, &seqNthIndexes, nm);
-
-    // Define the constructored types in the map
-    defineConstructoredInMap(&mapDType, &mapTypeNode, nm);
-
-    // Resolve the map
-    std::map<TypeNode, TypeNode> resolvedMap;
-    createResolvedMap(&mapDType, nm, &resolvedMap);
-    // print the resolvedMap
-    for (const auto& pair : resolvedMap) {
-        Trace("nesteddttag")  <<  "createResolvedMap - Old type: "  <<  pair.first  <<  " New type: "  <<  pair.second  <<  std::endl;
-        Trace("nesteddttag")  <<  "createResolvedMap - New Dtype: "  <<  pair.second.getDType()  <<  std::endl;
+    if (cycleNodes.size() > 0){
+        std::cout << "yes" << std::endl;
+    } else{
+        std::cout << "no" << std::endl;
     }
-
-    // Create a map between the vars and the new vars
-    std::map<Node, Node> varsMap;
-    createVarsFuncsMap(&resolvedMap, &vars, nm, &varsMap, &functionNodes);
-    // iterate over vars
-    for (const auto& var : vars) {
-        Assert(varsMap.find(var) != varsMap.end());
-        Trace("nesteddttag")  <<  "createVarsMap - Old var: "  <<  var  <<  " New var: "  <<  varsMap[var]  <<  std::endl;
-        Trace("nesteddttag")  <<  "createVarsMap - Old var type: "  <<  var.getType()  <<  " New var type: "  <<  varsMap[var].getType()  <<  std::endl;
-    }
-
-    // Create a map between the array types and the uninterpreted functions
-    std::map<TypeNode, std::vector<Node>> ufArrays;
-    createUFArrays(&resolvedMap, nm, &ufArrays);
-
-    Trace("nesteddttag")  <<  "after createUFArrays"  <<  std::endl;
-
-    std::map<Node, Node> nodeMap;
-    // Step 1: Precompute the "OR" vector
-    std::set<int> shouldProcess;
-    for (const auto& cycleNode : cycleNodes) {
-        auto typeIt = typeNodeMapRev.find(cycleNode);
-        Assert(typeIt != typeNodeMapRev.end());
-        auto intSetIt = typeNodeIntSet.find(typeIt->second);
-        Assert(intSetIt != typeNodeIntSet.end());
-        
-        shouldProcess.insert(intSetIt->second.begin(), intSetIt->second.end());
-    }
-
-    // Step 2: Iterate over the set shouldProcess and translate the assertions
-    for(const auto& index : shouldProcess) {
-        Node assertion = (*assertionsToPreprocess)[index];
-        Node newAssertion = translateNode(assertion, varsMap, ufArrays, resolvedMap, nm, &nodeMap);
-        assertionsToPreprocess->replace(index, newAssertion);
-    }
-    
-    // Add the new assertions to the assertionsToPreprocess
-    std::set<Node> newAssertions;
-    addAssertionsSelect(&selectNodes, &cycleNodes, &typeNodeMap, &boundVars, &selextIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
-    addAssertionsArrays(&selectNodes, &boundVars, nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
-    addAssertionsStore(&selextIndexes, nm, &newAssertions, &ufArrays, &storeNodes, &nodeMap);
-    addAssertionsSeqs(&seqs, nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
-    addAssertionsSeqNth(&seqNthNodes, &cycleNodes, &typeNodeMap , &seqNthIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
-    
-
-    for (const auto& newAssertion : newAssertions) {
-        assertionsToPreprocess->push_back(newAssertion);
-        Trace("nesteddttag")  <<  "New assertion: "  <<  newAssertion.toString()  <<  std::endl;
-    }
-    
-    Trace("nesteddttag")  <<  "___________________________"  <<  std::endl;
-    // print assertions
-    for (size_t i = 0, n = assertionsToPreprocess->size(); i < n; ++i) {
-        Trace("nesteddttag")  <<  "(assert "  <<  (*assertionsToPreprocess)[i].toString()  << ")" << std::endl;
-    }
-
-    return PreprocessingPassResult::NO_CONFLICT;
+    assertionsToPreprocess->push_back(nm->mkConst(false));
+    return PreprocessingPassResult::CONFLICT;
 }
 
 void Nesteddt::createGraph(Graph* g, std::set<TypeNode>* typesSet, std::map<TypeNode, int>* typeNodeMap, std::map<int, TypeNode>* typeNodeMapRev) {
