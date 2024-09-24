@@ -654,7 +654,30 @@ void TheoryArrays::checkWeakEquiv(bool arraysMerged) {
 void TheoryArrays::preRegisterTermInternal(TNode node)
 {
   cvc5::internal::MyDataStorage& storage = cvc5::internal::MyDataStorage::getInstance();
-  std::cout << storage.check << std::endl;
+  if ((storage.check == 0) && options().smt.nesteddtl){
+    for (const auto& pair : storage.arrInfo)
+    {
+      unsigned long key = pair.first;
+      const ArrayStruct& arrayStruct = pair.second;
+
+      std::cout << "Key: " << key << std::endl;
+      std::cout << "  Seen Arrays:" << std::endl;
+      for (const auto& n : arrayStruct.seenArrays)
+      {
+        std::cout << "    Node: " << n << std::endl;  // Assuming Node has an overloaded operator<<
+      }
+
+      std::cout << "  Ordered Indexes:" << std::endl;
+      for (const auto& entry : arrayStruct.orderedIndexes)
+      {
+        std::cout << "    Node: " << entry.first << " -> Index: " << entry.second << std::endl;  // Assuming Node has an overloaded operator<<
+      }
+
+      std::cout << "  Cons to Array Node: " << arrayStruct.consToArr << std::endl;  // Assuming Node has an overloaded operator<<
+      std::cout << "  Array to Cons Node: " << arrayStruct.arrToCons << std::endl;  // Assuming Node has an overloaded operator<<
+    }
+  }
+  storage.check = 5;
 
   if (d_state.isInConflict())
   {

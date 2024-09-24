@@ -152,6 +152,8 @@ class Nesteddtl : public PreprocessingPass
 
   void addAssertionsSeqs(std::set<Node>* seqNthNodes, NodeManager* nm, std::set<Node>* newAssertions, std::map<TypeNode, std::vector<Node>>* ufArrays, std::set<Node>* seqs, std::map<Node, Node>* nodeMap);
 
+  void populateSingleton(std::map<TypeNode, TypeNode>* resolvedMap, std::set<Node>* arrays, std::map<Node, Node>* nodeMap, std::map<TypeNode, std::vector<Node>>* ufArrays);
+
 };
 
 }  // namespace passes

@@ -128,9 +128,7 @@ PreprocessingPassResult Nesteddtl::applyInternal(
     std::set<Node> newAssertions;
     addAssertionsArrays(&selectNodes, &boundVars, nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
     addAssertionsSeqs(&seqs, nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
-
-    cvc5::internal::MyDataStorage& storage = cvc5::internal::MyDataStorage::getInstance();
-    storage.check = 3;
+    populateSingleton(&resolvedMap, &arrays, &nodeMap, &ufArrays);
 
     for (const auto& newAssertion : newAssertions) {
         assertionsToPreprocess->push_back(newAssertion);
@@ -986,6 +984,32 @@ void Nesteddtl::addAssertionsSeqs(std::set<Node>* seqNthNodes, NodeManager* nm, 
     }  
 }
 
+void Nesteddtl::populateSingleton(std::map<TypeNode, TypeNode>* resolvedMap, std::set<Node>* arrays, std::map<Node, Node>* nodeMap, std::map<TypeNode, std::vector<Node>>* ufArrays) {
+    std::vector<Node> ufs;
+    cvc5::internal::MyDataStorage& storage = cvc5::internal::MyDataStorage::getInstance();
+
+    for (const auto& pair : (*resolvedMap)) {
+        TypeNode originalType = pair.first;
+        TypeNode newType = pair.second;
+
+        std::cout << "Processing TypeNode pair: " << std::endl;
+        std::cout << "  Original TypeNode: " << originalType << std::endl;
+        std::cout << "  New TypeNode: " << newType << std::endl;
+
+        if (originalType.isArray()) {
+            std::cout << "  Original TypeNode is an array." << std::endl;
+
+            if (ufArrays->find(originalType) == ufArrays->end()) {
+                std::cerr << "Error: originalType not found in ufArrays." << std::endl;
+                continue;
+            }
+            ArrayStruct arrStruct;
+            arrStruct.consToArr = ufArrays->at(originalType)[0];
+            arrStruct.arrToCons = ufArrays->at(originalType)[1];
+            storage.arrInfo.insert(std::pair<unsigned long, ArrayStruct>(newType.getId(), arrStruct));
+        }
+    }    
+}
 }  // namespace passes
 }  // namespace preprocessing
 }  // namespace cvc5::internal

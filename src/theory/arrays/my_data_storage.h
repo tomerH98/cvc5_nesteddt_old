@@ -1,4 +1,3 @@
-// File: src/theory/nesteddt/my_data_storage.h
 
 #ifndef CVC5__NESTEDDT__MY_DATA_STORAGE_H
 #define CVC5__NESTEDDT__MY_DATA_STORAGE_H
@@ -11,6 +10,14 @@
 
 namespace cvc5::internal {
 
+struct ArrayStruct
+{
+    std::set<Node> seenArrays;       // Vector of nodes called seenArrays
+    std::map<Node, int> orderedIndexes; // Map from nodes to int called orderedIndexes
+    Node consToArr;                     // Node called consToArr
+    Node arrToCons;                     // Node called arrToCons
+};
+
 class MyDataStorage
 {
  public:
@@ -20,13 +27,18 @@ class MyDataStorage
     return instance;
   }
 
+  // Destructor to clear data before NodeManager is destroyed
+  ~MyDataStorage()
+  {
+    arrInfo.clear();
+  }
+
   // Delete copy constructor and assignment operator
   MyDataStorage(const MyDataStorage&) = delete;
   MyDataStorage& operator=(const MyDataStorage&) = delete;
 
   // Public data structures
-  std::map<TypeNode, DType> d_mapDType;
-  std::map<TypeNode, TypeNode> d_resolvedMap;
+  std::map<unsigned long, ArrayStruct> arrInfo;
   int check = 0;
   // Add other data structures as needed
 
