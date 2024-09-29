@@ -38,7 +38,7 @@ class MyDataStorage
   MyDataStorage& operator=(const MyDataStorage&) = delete;
 
   // Public data structures
-  std::map<unsigned long, ArrayStruct> arrInfo;
+  std::map<TypeNode, ArrayStruct> arrInfo;
   int check = 0;
   // Add other data structures as needed
 

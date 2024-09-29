@@ -60,49 +60,47 @@ def generate_smt2(grammar_file, base_file, output_file, num_assertions=10):
 
 def main():
     np.random.seed(42)
-    num_assertions = 10
+    num_assertions = 3
     max_line_length = float('inf')
     temp_smt2_with_shortest_max_line = None
 
+    count = 0
     for _ in tqdm(range(100)):
-        temp_smt2 = create_smt2_file_text("grammar1.txt", "base1.txt", num_assertions)
+        temp_smt2 = create_smt2_file_text("context_free_grammar/grammar1.txt", "context_free_grammar/base1.txt", num_assertions)
         lines = temp_smt2.split("\n")
         longest_line_length = max(len(line) for line in lines)
         
-        with open(f"temp_smt2.smt2", "w") as f:
-            f.write(temp_smt2)
-
-        temp_smt2 = lines[2:]
-        temp_smt2 = "\n".join(temp_smt2)
-
-        with open(f"temp_smt2.smt2", "w") as f:
+        with open(f"context_free_grammar/temp_smt2.smt2", "w") as f:
             f.write(temp_smt2)
 
         try:            
-            #command_cvc5 = ["../build/bin/cvc5", "temp_smt2.smt2"]
-            #result = subprocess.run(command_cvc5, capture_output=True, text=True, timeout=5)
-            #output_cvc5 = result.stdout
+            command_cvc5 = ["./build/bin/cvc5", "context_free_grammar/temp_smt2.smt2"]
+            result = subprocess.run(command_cvc5, capture_output=True, text=True, timeout=5)
+            output_cvc5 = result.stdout
             
-            #command_cvc5_nesteddt = ["../build/bin/cvc5", "temp_smt2.smt2", "--nesteddt"]
-            #result = subprocess.run(command_cvc5, capture_output=True, text=True, timeout=5)
-            #output_cvc5_nesteddt = result.stdout
+            command_cvc5_nesteddt = ["./build/bin/cvc5", "context_free_grammar/temp_smt2\.smt2", "--nesteddt", "--dt-nested-rec"]
+            result = subprocess.run(command_cvc5, capture_output=True, text=True, timeout=5)
+            output_cvc5_nesteddt = result.stdout
 
-            #if output_cvc5_nesteddt != output_cvc5:
-            #    print("FOUND ONE!!!!")
-            #    print(temp_smt2)
+            if output_cvc5_nesteddt != output_cvc5:
+               print("FOUND ONE!!!!")
+               print(temp_smt2)
 
-            command = ["../../z3/build/z3", "temp_smt2.smt2"]
-            result = subprocess.run(command, capture_output=True, text=True, timeout=2)
+            command = ["../z3/build/z3", "context_free_grammar/temp_smt2.smt2"]
+            result = subprocess.run(command, capture_output=True, text=True, timeout=5)
             output_z3 = result.stdout
+            if output_z3 != "":
+                if output_cvc5_nesteddt.split()[-1] != output_z3.split()[-1]:
+                    print("The output of z3 is: " + output_z3.split()[-1])
+                    print("The output of cvc5 is: " + output_cvc5_nesteddt.split()[-1])
+                    print(temp_smt2)
+                    exit()
         except subprocess.TimeoutExpired:
+            count += 1
             if longest_line_length < max_line_length:
                 max_line_length = longest_line_length
                 temp_smt2_with_shortest_max_line = temp_smt2
-
-    if temp_smt2_with_shortest_max_line:
-        print("SMT2 file for which Z3 had no response and the shortest max line:")
-        print(temp_smt2_with_shortest_max_line)
-        print(f"Length of the longest line: {max_line_length}")
+    print(f"Number of timeouts: {count}")
 
 if __name__ == "__main__":
     main()

@@ -4,8 +4,9 @@
 0.9 % eq -> = T T
 0.1 % eq -> = int int
 
-0.45 % ArrT -> arr T
-0.3 % ArrT -> a1
+0.5 % ArrT -> arr T
+0.05 % ArrT -> store ArrT int T
+0.2 % ArrT -> a1
 0.25 % ArrT -> a2
 
 0.5 % T -> select ArrT int

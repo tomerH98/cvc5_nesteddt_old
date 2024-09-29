@@ -1006,7 +1006,7 @@ void Nesteddtl::populateSingleton(std::map<TypeNode, TypeNode>* resolvedMap, std
             ArrayStruct arrStruct;
             arrStruct.consToArr = ufArrays->at(originalType)[0];
             arrStruct.arrToCons = ufArrays->at(originalType)[1];
-            storage.arrInfo.insert(std::pair<unsigned long, ArrayStruct>(newType.getId(), arrStruct));
+            storage.arrInfo.insert(std::pair<TypeNode, ArrayStruct>(arrStruct.consToArr.getType().getRangeType(), arrStruct));
         }
     }    
 }

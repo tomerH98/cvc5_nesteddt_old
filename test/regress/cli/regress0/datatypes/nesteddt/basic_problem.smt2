@@ -9,7 +9,7 @@
 (declare-const x T)
 (declare-const a (Array Int T))
 
-(assert (= x (select a 0)))
+(assert (= x (select (store a 1 x) 0)))
 (assert (= a (arr x)))
 
 (assert (not (= x nT)))

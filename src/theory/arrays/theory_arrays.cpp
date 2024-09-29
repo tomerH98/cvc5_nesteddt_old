@@ -654,10 +654,24 @@ void TheoryArrays::checkWeakEquiv(bool arraysMerged) {
 void TheoryArrays::preRegisterTermInternal(TNode node)
 {
   cvc5::internal::MyDataStorage& storage = cvc5::internal::MyDataStorage::getInstance();
-  if ((storage.check == 0) && options().smt.nesteddtl){
+  std::cout << "preRegisterTermInternal: " << node  << "typeNode: " << node.getType()<< std::endl;
+  if (storage.arrInfo.find(node.getType()) != storage.arrInfo.end() && storage.check == 0){
+    std::cout << "add lemma for: " << node << std::endl;
+    ArrayStruct arrS = storage.arrInfo[node.getType()];
+    Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrS.arrToCons, node);
+    newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrS.consToArr, newNode);
+    Node lemma = node.eqNode(newNode);
+    d_im.arrayLemma(lemma,
+                InferenceId::NONE,
+                nodeManager()->mkConst(true),
+                ProofRule::UNKNOWN);
+
+    storage.check = 1;
+  }
+  if ((storage.check == 10) && options().smt.nesteddtl){
     for (const auto& pair : storage.arrInfo)
     {
-      unsigned long key = pair.first;
+      TypeNode key = pair.first;
       const ArrayStruct& arrayStruct = pair.second;
 
       std::cout << "Key: " << key << std::endl;
@@ -677,7 +691,7 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
       std::cout << "  Array to Cons Node: " << arrayStruct.arrToCons << std::endl;  // Assuming Node has an overloaded operator<<
     }
   }
-  storage.check = 5;
+  //storage.check = 5;
 
   if (d_state.isInConflict())
   {
