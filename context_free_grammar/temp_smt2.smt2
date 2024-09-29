@@ -9,7 +9,6 @@
 (assert (not (= t2 nT)))
 (assert (not (= t3 nT)))
 
-
 (assert ( = nT ( select ( store ( arr t2) 2 t1) i)))
 (assert ( = t1 ( select ( arr ( select ( store ( arr t2) 2 t1) i)) 2)))
 

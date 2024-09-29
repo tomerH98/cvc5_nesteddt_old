@@ -36,6 +36,7 @@ class Nesteddtl : public PreprocessingPass
    * @param preprocContext The preprocessing context
    */
   Nesteddtl(PreprocessingPassContext* preprocContext);
+  static inline const std::string nested_prefix = "nested_datatype_prefix";
 
  protected:
   /**
@@ -48,6 +49,7 @@ class Nesteddtl : public PreprocessingPass
       AssertionPipeline* assertionsToPreprocess) override;
 
  private:
+   // let's define a constant string for the new datatype name
   /**
    * Analyze the assertions and find the set of constructored types, array types, variables and select assertions.
    *

@@ -1,19 +1,6 @@
-[  0%] Built target gen-options
-[  0%] Built target CaDiCaL-EP
--- Found Git: /usr/bin/git (found version "2.34.1") 
-[  1%] Built target gen-theory
-[  1%] Built target Poly-EP
-[  3%] Built target SymFPU-EP
-[  3%] Built target cvc5context
-[  3%] Built target gen-expr
-[  3%] Built target gen-rewrites
-[  3%] Built target gen-tokens
-[  4%] Generating Trace_tags.h
-[  4%] Built target gen-versioninfo
-[  7%] Built target cvc5parser-objs
-[  7%] Built target cvc5parserapi-objs
-[  7%] Built target gen-tags
-[  7%] Built target cvc5base
-Consolidate compiler generated dependencies of target cvc5-obj
-[  7%] Building CXX object src/CMakeFiles/cvc5-obj.dir/preprocessing/passes/nesteddtl.cpp.o
-[  7%] Building CXX object src/CMakeFiles/cvc5-obj.dir/theory/arrays/theory_arrays.cpp.o
+(lemma (= a_rc_3 (|_nested_datatype_prefix_Array_[Int_T]_rc__0_4| (|_nested_datatype_prefix_Array_[Int_T]_rc__0_4| a_rc_3))) :source NONE)
+(lemma (let ((_let_1 (|_nested_datatype_prefix_Array_[Int_T]_rc__0_4| a_rc_3))) (= (select _let_1 0) (car (nested_datatype_prefix_reverse_6 _let_1)))) :source NONE)
+(lemma (let ((_let_1 (nested_datatype_prefix_reverse_6 (|_nested_datatype_prefix_Array_[Int_T]_rc__0_4| a_rc_3)))) (or (= _let_1 nil_Int_T) ((_ is cons) _let_1))) :source DATATYPES_SPLIT)
+TheoryEngine::getEqualityStatus: type mismatch
+  a = a_rc_3
+  b = (|_nested_datatype_prefix_Array_[Int_T]_rc__0_4| a_rc_3)

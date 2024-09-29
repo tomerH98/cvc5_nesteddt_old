@@ -1,5 +1,4 @@
 #include "preprocessing/passes/nesteddtl.h"
-#include "theory/arrays/my_data_storage.h"
 #include "expr/node.h"
 #include "preprocessing/assertion_pipeline.h"
 #include "preprocessing/preprocessing_pass_context.h"
@@ -122,17 +121,6 @@ PreprocessingPassResult Nesteddtl::applyInternal(
         Node assertion = (*assertionsToPreprocess)[index];
         Node newAssertion = translateNode(assertion, varsMap, ufArrays, resolvedMap, nm, &nodeMap);
         assertionsToPreprocess->replace(index, newAssertion);
-    }
-    
-    // Add the new assertions to the assertionsToPreprocess
-    std::set<Node> newAssertions;
-    addAssertionsArrays(&selectNodes, &boundVars, nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
-    addAssertionsSeqs(&seqs, nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
-    populateSingleton(&resolvedMap, &arrays, &nodeMap, &ufArrays);
-
-    for (const auto& newAssertion : newAssertions) {
-        assertionsToPreprocess->push_back(newAssertion);
-        Trace("nesteddtltag")  <<  "New assertion: "  <<  newAssertion.toString()  <<  std::endl;
     }
     
     Trace("nesteddtltag")  <<  "___________________________"  <<  std::endl;
@@ -518,7 +506,7 @@ void Nesteddtl::declareNewTypes(std::set<TypeNode>* constructoredTypes, std::set
     // Iterate over constructoredTypes
     for (const auto& constructoredType : (*constructoredTypes)) {
         ss.str("");
-        ss  <<  constructoredType  <<  "_rc";
+        ss  << nested_prefix << "_" <<  constructoredType  <<  "_rc";
         // Declare a new type for each constructoredType
         DType newDType(ss.str());
         (*mapDType).insert(std::pair<TypeNode, DType>(constructoredType, newDType));
@@ -530,7 +518,7 @@ void Nesteddtl::declareNewTypes(std::set<TypeNode>* constructoredTypes, std::set
 
     for (const auto& arrayType : (*arrayTypes)) {
         ss.str("");
-        ss  <<  "Array_["  <<  arrayType.getArrayIndexType()  <<  "_"  <<  arrayType.getArrayConstituentType()  <<  "]_rc";
+        ss  << nested_prefix << "_Array_["  <<  arrayType.getArrayIndexType()  <<  "_"  <<  arrayType.getArrayConstituentType()  <<  "]_rc";
         // Declare a new type for each arrayType
         DType newDType(ss.str());
         (*mapDType).insert(std::pair<TypeNode, DType>(arrayType, newDType));
@@ -541,7 +529,7 @@ void Nesteddtl::declareNewTypes(std::set<TypeNode>* constructoredTypes, std::set
 
     for (const auto& seqType : (*seqTypes)) {
         ss.str("");
-        ss  <<  "Seq_"  <<  seqType.getSequenceElementType()  <<  "_rc";
+        ss << nested_prefix <<  "_Seq_"  <<  seqType.getSequenceElementType()  <<  "_rc";
         // Declare a new type for each arrayType
         DType newDType(ss.str());
         (*mapDType).insert(std::pair<TypeNode, DType>(seqType, newDType));
@@ -577,8 +565,8 @@ void Nesteddtl::defineArraySeqInMap(std::map<TypeNode, DType>* mapDType, std::ma
         std::shared_ptr<DTypeConstructor> cons = std::make_shared<DTypeConstructor>("cons");
         // Iterate over the select assertions of the arrayType
         TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
-        cons->addArg("cdr", newElementType);
-        cons->addArg("car", newArrType);
+        cons->addArg("car", newElementType);
+        cons->addArg("cdr", newArrType);
            
         newDType.addConstructor(cons);
         // Insert the new type into the mapDType
@@ -783,7 +771,7 @@ void Nesteddtl::createUFArrays(std::map<TypeNode, TypeNode>* map, NodeManager* n
             TypeNode newArrayType = nm->mkArrayType(indexType, elementType);
             
             // Create a old to new
-            std::string consToArrName = consType.toString() + "_0";
+            std::string consToArrName =  consType.toString() + "_0";
             Node consToArr = sm->mkDummySkolem(consToArrName, nm->mkFunctionType(consType, newArrayType));
             // Create a new to old
             std::string arrToOldName = consType.toString() + "_1";
@@ -985,30 +973,7 @@ void Nesteddtl::addAssertionsSeqs(std::set<Node>* seqNthNodes, NodeManager* nm, 
 }
 
 void Nesteddtl::populateSingleton(std::map<TypeNode, TypeNode>* resolvedMap, std::set<Node>* arrays, std::map<Node, Node>* nodeMap, std::map<TypeNode, std::vector<Node>>* ufArrays) {
-    std::vector<Node> ufs;
-    cvc5::internal::MyDataStorage& storage = cvc5::internal::MyDataStorage::getInstance();
-
-    for (const auto& pair : (*resolvedMap)) {
-        TypeNode originalType = pair.first;
-        TypeNode newType = pair.second;
-
-        std::cout << "Processing TypeNode pair: " << std::endl;
-        std::cout << "  Original TypeNode: " << originalType << std::endl;
-        std::cout << "  New TypeNode: " << newType << std::endl;
-
-        if (originalType.isArray()) {
-            std::cout << "  Original TypeNode is an array." << std::endl;
-
-            if (ufArrays->find(originalType) == ufArrays->end()) {
-                std::cerr << "Error: originalType not found in ufArrays." << std::endl;
-                continue;
-            }
-            ArrayStruct arrStruct;
-            arrStruct.consToArr = ufArrays->at(originalType)[0];
-            arrStruct.arrToCons = ufArrays->at(originalType)[1];
-            storage.arrInfo.insert(std::pair<TypeNode, ArrayStruct>(arrStruct.consToArr.getType().getRangeType(), arrStruct));
-        }
-    }    
+    
 }
 }  // namespace passes
 }  // namespace preprocessing
