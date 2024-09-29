@@ -1263,6 +1263,10 @@ bool TheoryEngine::propagate(TNode literal, theory::TheoryId theory) {
 
 theory::EqualityStatus TheoryEngine::getEqualityStatus(TNode a, TNode b)
 {
+  if (a.getType() != b.getType()){
+    std::cout << " found the diff" << std::endl;
+    std::cout << a <<" " << b << std::endl;
+  }
   Assert(a.getType() == b.getType());
   return d_sharedSolver->getEqualityStatus(a, b);
 }

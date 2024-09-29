@@ -654,6 +654,56 @@ void TheoryArrays::checkWeakEquiv(bool arraysMerged) {
  */
 void TheoryArrays::preRegisterTermInternal(TNode node)
 {
+  if ((options().smt.nesteddtl) && (node.getType().isArray())){
+    std::string prefix = cvc5::internal::preprocessing::passes::Nesteddtl::nested_prefix;
+    if (node.getType().getArrayConstituentType().toString().find(prefix) != std::string::npos){
+      if (nesteddtlArrInfo.find(node.getType()) == nesteddtlArrInfo.end()){
+          ArrayStruct arrStruct;
+          arrStruct.arrQueue.insert(node);
+          nesteddtlArrInfo[node.getType()] = arrStruct;
+          Trace("nesteddtltag") <<  "Nesteddtl: Created new ArrayStruct for arrayType" << std::endl;
+      } else{
+        ArrayStruct arrStruct = nesteddtlArrInfo[node.getType()];
+        if (arrStruct.seenArrays.find(node) == arrStruct.seenArrays.end()){
+          arrStruct.arrQueue.insert(node);
+          if (arrStruct.consToArrInitialized){
+            while(!arrStruct.arrQueue.empty() && arrStruct.consToArrInitialized){
+              Node array = *arrStruct.arrQueue.begin();
+
+              if (arrStruct.seenArrays.find(array) == arrStruct.seenArrays.end())
+                {
+                    arrStruct.seenArrays.insert(array);
+                    Trace("nesteddtltag") <<  "Nesteddtl: Adding lemma for array: " << array << std::endl;
+                    // make lemma to be a const of false
+                    Node lemma = nodeManager()->mkConst(false);
+                    if (array.getKind() == Kind::APPLY_UF){
+                      if (array.getOperator() == arrStruct.consToArr){
+                        Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
+                        lemma = array[0].eqNode(newNode);
+                      }
+                    }
+                    if (lemma == nodeManager()->mkConst(false)){
+                      Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
+                      newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.consToArr, newNode);
+                      lemma = array.eqNode(newNode);
+                    }
+                    
+                    Trace("nesteddtltag") <<  "Nesteddtl: Lemma: " << lemma << std::endl;
+                    d_im.arrayLemma(lemma,
+                                    InferenceId::NONE,
+                                    nodeManager()->mkConst(true),
+                                    ProofRule::UNKNOWN);
+                }
+                arrStruct.seenArrays.emplace(*arrStruct.arrQueue.begin());
+                arrStruct.arrQueue.erase(arrStruct.arrQueue.begin());
+                Trace("nesteddtltag") <<  "Nesteddtl: Removed processed node from arrQueue " << arrStruct.arrQueue.size() << std::endl;
+            }
+
+          }
+        } 
+      }
+    }
+  }
   if ((options().smt.nesteddtl) && (node.getKind() == Kind::SELECT))
 {
     Trace("nesteddtltag") <<  "Nesteddtl: SELECT node found: " << node << std::endl;
@@ -709,7 +759,6 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
           }
 
           arrStruct.selectQueue.insert(node);
-          arrStruct.seenArrays.insert(array);
           Trace("nesteddtltag") <<  "Nesteddtl: Added node to selectQueue" << std::endl;
 
           while (!arrStruct.selectQueue.empty() && arrStruct.consToArrInitialized)
@@ -720,31 +769,6 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
               Node index = currentSelect[1];
               Trace("nesteddtltag") <<  "Nesteddtl: Processing select node: " << currentSelect << "size: " << arrStruct.selectQueue.size()<< std::endl;
               Trace("nesteddtltag") <<  "Nesteddtl: array: " << array << ", index: " << index << std::endl;
-
-              if (arrStruct.seenArrays.find(array) == arrStruct.seenArrays.end())
-              {
-                  arrStruct.seenArrays.insert(array);
-                  Trace("nesteddtltag") <<  "Nesteddtl: Adding lemma for array: " << array << std::endl;
-                  // make lemma to be a const of false
-                  Node lemma = nodeManager()->mkConst(false);
-                  if (array.getKind() == Kind::APPLY_UF){
-                    if (array.getOperator() == arrStruct.consToArr){
-                      Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
-                      lemma = array[0].eqNode(newNode);
-                    }
-                  }
-                  if (lemma == nodeManager()->mkConst(false)){
-                    Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
-                    newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.consToArr, newNode);
-                    lemma = array.eqNode(newNode);
-                  }
-                  
-                  Trace("nesteddtltag") <<  "Nesteddtl: Lemma: " << lemma << std::endl;
-                  d_im.arrayLemma(lemma,
-                                  InferenceId::NONE,
-                                  nodeManager()->mkConst(true),
-                                  ProofRule::UNKNOWN);
-              }
 
               if (arrStruct.orderedIndexes.find(index) == arrStruct.orderedIndexes.end())
               {
@@ -809,6 +833,38 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
               // Remove the processed element from the set
               arrStruct.selectQueue.erase(arrStruct.selectQueue.begin());
               Trace("nesteddtltag") <<  "Nesteddtl: Removed processed node from selectQueue " << arrStruct.selectQueue.size() << std::endl;
+          }
+          arrStruct.arrQueue.insert(array);
+          while(!arrStruct.arrQueue.empty() && arrStruct.consToArrInitialized){
+            array = *arrStruct.arrQueue.begin();
+
+            if (arrStruct.seenArrays.find(array) == arrStruct.seenArrays.end())
+              {
+                  arrStruct.seenArrays.insert(array);
+                  Trace("nesteddtltag") <<  "Nesteddtl: Adding lemma for array: " << array << std::endl;
+                  // make lemma to be a const of false
+                  Node lemma = nodeManager()->mkConst(false);
+                  if (array.getKind() == Kind::APPLY_UF){
+                    if (array.getOperator() == arrStruct.consToArr){
+                      Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
+                      lemma = array[0].eqNode(newNode);
+                    }
+                  }
+                  if (lemma == nodeManager()->mkConst(false)){
+                    Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
+                    newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.consToArr, newNode);
+                    lemma = array.eqNode(newNode);
+                  }
+                  
+                  Trace("nesteddtltag") <<  "Nesteddtl: Lemma: " << lemma << std::endl;
+                  d_im.arrayLemma(lemma,
+                                  InferenceId::NONE,
+                                  nodeManager()->mkConst(true),
+                                  ProofRule::UNKNOWN);
+              }
+              arrStruct.seenArrays.emplace(*arrStruct.arrQueue.begin());
+              arrStruct.arrQueue.erase(arrStruct.arrQueue.begin());
+              Trace("nesteddtltag") <<  "Nesteddtl: Removed processed node from arrQueue " << arrStruct.arrQueue.size() << std::endl;
           }
         }
       }
