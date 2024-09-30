@@ -689,10 +689,13 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
                     }
                     
                     Trace("nesteddtltag") <<  "Nesteddtl: Lemma: " << lemma << std::endl;
-                    d_im.arrayLemma(lemma,
-                                    InferenceId::NONE,
-                                    nodeManager()->mkConst(true),
-                                    ProofRule::UNKNOWN);
+                    if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
+                      d_im.arrayLemma(lemma,
+                                      InferenceId::NONE,
+                                      nodeManager()->mkConst(true),
+                                      ProofRule::UNKNOWN);
+                      arrStruct.addedLemmas.insert(lemma);
+                    }
                 }
                 arrStruct.seenArrays.emplace(*arrStruct.arrQueue.begin());
                 arrStruct.arrQueue.erase(arrStruct.arrQueue.begin());
@@ -784,7 +787,7 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
               Trace("nesteddtltag") <<  "Nesteddtl: consArray: " << consArray << std::endl;
 
               DType dt = consArray.getType().getDType();
-              Node car, cdr;
+              Node car, cdr, nil;
               Trace("nesteddtltag") <<  "Nesteddtl: consArray type DType: " << dt << std::endl;
 
               // Iterate over the constructors of the datatype
@@ -792,7 +795,11 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
               {
                   DTypeConstructor ctor = dt[i];
                   Trace("nesteddtltag") <<  "Nesteddtl: Constructor " << i << ": " << ctor.getName() << std::endl;
-
+                  
+                  if (ctor.getNumArgs()==0){
+                    nil = ctor.getConstructor();
+                    Trace("nesteddtltag") <<  "Nesteddtl: nil set to constructor: " << nil << std::endl;
+                  }
                   // Iterate over the arguments of the constructor
                   for (unsigned j = 0; j < ctor.getNumArgs(); j++)
                   {
@@ -813,22 +820,41 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
               }
 
               Node cur = consArray;
+              Node lemma = cur.eqNode(nil).notNode();
+                  if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
+                      d_im.arrayLemma(lemma,
+                                      InferenceId::NONE,
+                                      nodeManager()->mkConst(true),
+                                      ProofRule::UNKNOWN);
+                      arrStruct.addedLemmas.insert(lemma);
+                    }
               for (int i = 0; i < indexNum; i++)
               {
                   cur = nodeManager()->mkNode(Kind::APPLY_SELECTOR, cdr, cur);
                   Trace("nesteddtltag") <<  "Nesteddtl: Applied cdr, cur is now: " << cur << std::endl;
+                  Node lemma = cur.eqNode(nil).notNode();
+                  if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
+                      d_im.arrayLemma(lemma,
+                                      InferenceId::NONE,
+                                      nodeManager()->mkConst(true),
+                                      ProofRule::UNKNOWN);
+                      arrStruct.addedLemmas.insert(lemma);
+                    }
               }
 
               cur = nodeManager()->mkNode(Kind::APPLY_SELECTOR, car, cur);
               Trace("nesteddtltag") <<  "Nesteddtl: Applied car, cur is now: " << cur << std::endl;
 
-              Node lemma = cur.eqNode(currentSelect);
+              lemma = cur.eqNode(currentSelect);
               Trace("nesteddtltag") <<  "Nesteddtl: Lemma: " << lemma << std::endl;
 
-              d_im.arrayLemma(lemma,
-                              InferenceId::NONE,
-                              nodeManager()->mkConst(true),
-                              ProofRule::UNKNOWN);
+              if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
+                      d_im.arrayLemma(lemma,
+                                      InferenceId::NONE,
+                                      nodeManager()->mkConst(true),
+                                      ProofRule::UNKNOWN);
+                      arrStruct.addedLemmas.insert(lemma);
+                    }
 
               // Remove the processed element from the set
               arrStruct.selectQueue.erase(arrStruct.selectQueue.begin());
@@ -857,10 +883,13 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
                   }
                   
                   Trace("nesteddtltag") <<  "Nesteddtl: Lemma: " << lemma << std::endl;
-                  d_im.arrayLemma(lemma,
-                                  InferenceId::NONE,
-                                  nodeManager()->mkConst(true),
-                                  ProofRule::UNKNOWN);
+                  if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
+                      d_im.arrayLemma(lemma,
+                                      InferenceId::NONE,
+                                      nodeManager()->mkConst(true),
+                                      ProofRule::UNKNOWN);
+                      arrStruct.addedLemmas.insert(lemma);
+                    }
               }
               arrStruct.seenArrays.emplace(*arrStruct.arrQueue.begin());
               arrStruct.arrQueue.erase(arrStruct.arrQueue.begin());

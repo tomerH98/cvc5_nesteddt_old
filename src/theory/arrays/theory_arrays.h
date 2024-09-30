@@ -97,6 +97,7 @@ static inline std::string spaces(int level)
 
 struct ArrayStruct
 {
+    std::set<Node> addedLemmas;
     std::set<Node> seenArrays;   
     std::set<Node> seenSelects;           
     std::map<Node, int> orderedIndexes; 
