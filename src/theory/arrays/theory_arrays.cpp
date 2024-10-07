@@ -662,12 +662,35 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
           arrStruct.arrQueue.insert(node);
           nesteddtlArrInfo[node.getType()] = arrStruct;
           Trace("nesteddtltag") <<  "Nesteddtl: Created new ArrayStruct for arrayType" << std::endl;
-      } else{
-        ArrayStruct arrStruct = nesteddtlArrInfo[node.getType()];
-        if (arrStruct.seenArrays.find(node) == arrStruct.seenArrays.end()){
-          arrStruct.arrQueue.insert(node);
-          if (arrStruct.consToArrInitialized){
-            while(!arrStruct.arrQueue.empty() && arrStruct.consToArrInitialized){
+      } 
+      ArrayStruct& arrStruct = nesteddtlArrInfo[node.getType()];
+      if (arrStruct.seenArrays.find(node) == arrStruct.seenArrays.end()){
+        arrStruct.arrQueue.insert(node);
+        if ((!arrStruct.consToArrInitialized) && (node.getKind() == Kind::APPLY_UF)){
+            Node uf = node.getOperator();
+            Trace("nesteddtltag") <<  "Nesteddtl: Found APPLY_UF with operator: " << uf << std::endl;
+
+            // Check if the function starts with the prefix
+            if (uf.toString().find(prefix) != std::string::npos)
+            {
+                Trace("nesteddtltag") <<  "Nesteddtl: Operator starts with prefix" << std::endl;
+
+                arrStruct.consToArr = uf;
+                // Make a TypeNode for the reverse uf
+                TypeNode input = uf.getType().getArgTypes()[0];
+                TypeNode output = uf.getType().getRangeType();
+                Trace("nesteddtltag") <<  "Nesteddtl: input type: " << input << ", output type: " << output << std::endl;
+
+                TypeNode reverseType = NodeManager::currentNM()->mkFunctionType(output, input);
+                SkolemManager* sm = NodeManager::currentNM()->getSkolemManager();
+                arrStruct.arrToCons = sm->mkDummySkolem(prefix + "_reverse", reverseType);
+                Trace("nesteddtltag") <<  "Nesteddtl: Created arrToCons function: " << arrStruct.arrToCons << std::endl;
+                
+                arrStruct.consToArrInitialized = true;
+            }
+        }
+        if (arrStruct.consToArrInitialized){
+          while(!arrStruct.arrQueue.empty() && arrStruct.consToArrInitialized){
               Node array = *arrStruct.arrQueue.begin();
 
               if (arrStruct.seenArrays.find(array) == arrStruct.seenArrays.end())
@@ -697,12 +720,9 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
                       arrStruct.addedLemmas.insert(lemma);
                     }
                 }
-                arrStruct.seenArrays.emplace(*arrStruct.arrQueue.begin());
-                arrStruct.arrQueue.erase(arrStruct.arrQueue.begin());
-                Trace("nesteddtltag") <<  "Nesteddtl: Removed processed node from arrQueue " << arrStruct.arrQueue.size() << std::endl;
+              arrStruct.arrQueue.erase(arrStruct.arrQueue.begin());
+              Trace("nesteddtltag") <<  "Nesteddtl: Removed processed node from arrQueue " << arrStruct.arrQueue.size() << std::endl;
             }
-
-          }
         } 
       }
     }
@@ -832,7 +852,7 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
               {
                   cur = nodeManager()->mkNode(Kind::APPLY_SELECTOR, cdr, cur);
                   Trace("nesteddtltag") <<  "Nesteddtl: Applied cdr, cur is now: " << cur << std::endl;
-                  Node lemma = cur.eqNode(nil).notNode();
+                  lemma = cur.eqNode(nil).notNode();
                   if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
                       d_im.arrayLemma(lemma,
                                       InferenceId::NONE,
