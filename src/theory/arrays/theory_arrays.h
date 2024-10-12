@@ -97,14 +97,12 @@ static inline std::string spaces(int level)
 
 struct ArrayStruct
 {
-    std::set<Node> addedLemmas;
-    std::set<Node> seenArrays;   
+    std::set<Node> addedLemmas;  
     std::set<Node> seenSelects;           
     std::map<Node, int> orderedIndexes; 
     Node consToArr;                     
     Node arrToCons;                    
-    std::set<Node> selectQueue;     
-    std::set<Node> arrQueue;     
+    std::set<Node> selectQueue;        
     bool consToArrInitialized = false; 
 };
 
@@ -231,6 +229,8 @@ class TheoryArrays : public Theory {
 
   /** Helper for preRegisterTerm, also used internally */
   void preRegisterTermInternal(TNode n);
+
+  void cleanQueue(ArrayStruct* arrStruct);
 
  public:
   void preRegisterTerm(TNode n) override;

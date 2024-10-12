@@ -637,6 +637,104 @@ void TheoryArrays::checkWeakEquiv(bool arraysMerged) {
   }
 }
 
+void TheoryArrays::cleanQueue(ArrayStruct* arrStruct){
+  Trace("nesteddtltag") <<  "Nesteddtl: cleanQueue: arrStruct->selectQueue.size() " << arrStruct->selectQueue.size() << std::endl;
+  while (!arrStruct->selectQueue.empty() && arrStruct->consToArrInitialized){
+    // Get the first element from the set
+    Node currentSelect = *arrStruct->selectQueue.begin();
+    Node array = currentSelect[0];
+    Node index = currentSelect[1];
+    Trace("nesteddtltag") <<  "Nesteddtl: Processing select node: " << currentSelect << "size: " << arrStruct->selectQueue.size()<< std::endl;
+    Trace("nesteddtltag") <<  "Nesteddtl: array: " << array << ", index: " << index << std::endl;
+
+    if (arrStruct->orderedIndexes.find(index) == arrStruct->orderedIndexes.end())
+    {
+        arrStruct->orderedIndexes[index] = arrStruct->orderedIndexes.size();
+        Trace("nesteddtltag") <<  "Nesteddtl: New index: " << index
+                  << ", assigned number: " << arrStruct->orderedIndexes[index] << std::endl;
+    }
+
+    int indexNum = arrStruct->orderedIndexes[index];
+    Trace("nesteddtltag") <<  "Nesteddtl: indexNum for index " << index << " is " << indexNum << std::endl;
+
+    Node consArray = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct->arrToCons, array);
+    Trace("nesteddtltag") <<  "Nesteddtl: consArray: " << consArray << std::endl;
+
+    DType dt = consArray.getType().getDType();
+    Node car, cdr, nil;
+    Trace("nesteddtltag") <<  "Nesteddtl: consArray type DType: " << dt << std::endl;
+
+    // Iterate over the constructors of the datatype
+    for (unsigned i = 0; i < dt.getNumConstructors(); i++)
+    {
+        DTypeConstructor ctor = dt[i];
+        Trace("nesteddtltag") <<  "Nesteddtl: Constructor " << i << ": " << ctor.getName() << std::endl;
+        
+        if (ctor.getNumArgs()==0){
+          nil = ctor.getConstructor();
+          Trace("nesteddtltag") <<  "Nesteddtl: nil set to constructor: " << nil << std::endl;
+        }
+        // Iterate over the arguments of the constructor
+        for (unsigned j = 0; j < ctor.getNumArgs(); j++)
+        {
+            TypeNode argType = ctor[j].getRangeType();
+            Trace("nesteddtltag") <<  "Nesteddtl: Arg " << j << " type: " << argType << std::endl;
+
+            if (argType == consArray.getType())
+            {
+                cdr = ctor[j].getSelector();
+                Trace("nesteddtltag") <<  "Nesteddtl: cdr set to selector: " << cdr << std::endl;
+            }
+            else
+            {
+                car = ctor[j].getSelector();
+                Trace("nesteddtltag") <<  "Nesteddtl: car set to selector: " << car << std::endl;
+            }
+        }
+    }
+
+    Node cur = consArray;
+    Node lemma = cur.eqNode(nil).notNode();
+    if (arrStruct->addedLemmas.find(lemma) == arrStruct->addedLemmas.end()){
+        d_im.arrayLemma(lemma,
+                        InferenceId::NONE,
+                        nodeManager()->mkConst(true),
+                        ProofRule::UNKNOWN);
+        arrStruct->addedLemmas.insert(lemma);
+      }
+    for (int i = 0; i < indexNum; i++){
+        cur = nodeManager()->mkNode(Kind::APPLY_SELECTOR, cdr, cur);
+        Trace("nesteddtltag") <<  "Nesteddtl: Applied cdr, cur is now: " << cur << std::endl;
+        lemma = cur.eqNode(nil).notNode();
+        if (arrStruct->addedLemmas.find(lemma) == arrStruct->addedLemmas.end()){
+            d_im.arrayLemma(lemma,
+                            InferenceId::NONE,
+                            nodeManager()->mkConst(true),
+                            ProofRule::UNKNOWN);
+            arrStruct->addedLemmas.insert(lemma);
+          }
+    }
+
+    cur = nodeManager()->mkNode(Kind::APPLY_SELECTOR, car, cur);
+    Trace("nesteddtltag") <<  "Nesteddtl: Applied car, cur is now: " << cur << std::endl;
+
+    lemma = cur.eqNode(currentSelect);
+    Trace("nesteddtltag") <<  "Nesteddtl: Lemma: " << lemma << std::endl;
+
+    if (arrStruct->addedLemmas.find(lemma) == arrStruct->addedLemmas.end()){
+      d_im.arrayLemma(lemma,
+                      InferenceId::NONE,
+                      nodeManager()->mkConst(true),
+                      ProofRule::UNKNOWN);
+      arrStruct->addedLemmas.insert(lemma);
+    }
+
+    // Remove the processed element from the set
+    arrStruct->selectQueue.erase(arrStruct->selectQueue.begin());
+    Trace("nesteddtltag") <<  "Nesteddtl: Removed processed node from selectQueue " << arrStruct->selectQueue.size() << std::endl;
+  }
+}
+
 /**
  * Stores in d_infoMap the following information for each term a of type array:
  *
@@ -656,79 +754,31 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
 {
   if ((options().smt.nesteddtl) && (node.getType().isArray())){
     std::string prefix = cvc5::internal::preprocessing::passes::Nesteddtl::nested_prefix;
-    if (node.getType().getArrayConstituentType().toString().find(prefix) != std::string::npos){
-      if (nesteddtlArrInfo.find(node.getType()) == nesteddtlArrInfo.end()){
-          ArrayStruct arrStruct;
-          arrStruct.arrQueue.insert(node);
-          nesteddtlArrInfo[node.getType()] = arrStruct;
-          Trace("nesteddtltag") <<  "Nesteddtl: Created new ArrayStruct for arrayType" << std::endl;
-      } 
-      ArrayStruct& arrStruct = nesteddtlArrInfo[node.getType()];
-      if (arrStruct.seenArrays.find(node) == arrStruct.seenArrays.end()){
-        arrStruct.arrQueue.insert(node);
-        if ((!arrStruct.consToArrInitialized) && (node.getKind() == Kind::APPLY_UF)){
-            Node uf = node.getOperator();
-            Trace("nesteddtltag") <<  "Nesteddtl: Found APPLY_UF with operator: " << uf << std::endl;
-
-            // Check if the function starts with the prefix
-            if (uf.toString().find(prefix) != std::string::npos)
-            {
-                Trace("nesteddtltag") <<  "Nesteddtl: Operator starts with prefix" << std::endl;
-
-                arrStruct.consToArr = uf;
-                // Make a TypeNode for the reverse uf
-                TypeNode input = uf.getType().getArgTypes()[0];
-                TypeNode output = uf.getType().getRangeType();
-                Trace("nesteddtltag") <<  "Nesteddtl: input type: " << input << ", output type: " << output << std::endl;
-
-                TypeNode reverseType = NodeManager::currentNM()->mkFunctionType(output, input);
-                SkolemManager* sm = NodeManager::currentNM()->getSkolemManager();
-                arrStruct.arrToCons = sm->mkDummySkolem(prefix + "_reverse", reverseType);
-                Trace("nesteddtltag") <<  "Nesteddtl: Created arrToCons function: " << arrStruct.arrToCons << std::endl;
-                
-                arrStruct.consToArrInitialized = true;
-            }
+    Trace("nesteddtltag") <<  "Nesteddtl: arr node " << node << std::endl;
+    if(node.getKind() == Kind::APPLY_UF){
+      if (node.getOperator().toString().find(prefix) != std::string::npos){
+        Trace("nesteddtltag") <<  "Nesteddtl: first 2 ifs" << std::endl;
+        Trace("nesteddtltag") <<  "Nesteddtl: node[0] " << node[0] << " node[0].getKind() " << node[0].getKind()<< std::endl;
+        if(node[0].getKind() == Kind::APPLY_UF){
+          if (node[0].getOperator().toString().find(prefix) != std::string::npos){
+            Trace("nesteddtltag") <<  "Nesteddtl: second 2 ifs" << std::endl;
+            if (nesteddtlArrInfo.find(node.getType()) == nesteddtlArrInfo.end()){
+              ArrayStruct arrStruct;
+              nesteddtlArrInfo[node.getType()] = arrStruct;
+              Trace("nesteddtltag") <<  "Nesteddtl: Created new ArrayStruct for arrayType" << std::endl;
+            } 
+            ArrayStruct& arrStruct = nesteddtlArrInfo[node.getType()];
+            arrStruct.consToArr = node.getOperator();
+            arrStruct.arrToCons = node[0].getOperator();
+            arrStruct.consToArrInitialized = true;
+            cleanQueue(&arrStruct);
+          }
         }
-        if (arrStruct.consToArrInitialized){
-          while(!arrStruct.arrQueue.empty() && arrStruct.consToArrInitialized){
-              Node array = *arrStruct.arrQueue.begin();
-
-              if (arrStruct.seenArrays.find(array) == arrStruct.seenArrays.end())
-                {
-                    arrStruct.seenArrays.insert(array);
-                    Trace("nesteddtltag") <<  "Nesteddtl: Adding lemma for array: " << array << std::endl;
-                    // make lemma to be a const of false
-                    Node lemma = nodeManager()->mkConst(false);
-                    if (array.getKind() == Kind::APPLY_UF){
-                      if (array.getOperator() == arrStruct.consToArr){
-                        Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
-                        lemma = array[0].eqNode(newNode);
-                      }
-                    }
-                    if (lemma == nodeManager()->mkConst(false)){
-                      Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
-                      newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.consToArr, newNode);
-                      lemma = array.eqNode(newNode);
-                    }
-                    
-                    Trace("nesteddtltag") <<  "Nesteddtl: Lemma: " << lemma << std::endl;
-                    if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
-                      d_im.arrayLemma(lemma,
-                                      InferenceId::NONE,
-                                      nodeManager()->mkConst(true),
-                                      ProofRule::UNKNOWN);
-                      arrStruct.addedLemmas.insert(lemma);
-                    }
-                }
-              arrStruct.arrQueue.erase(arrStruct.arrQueue.begin());
-              Trace("nesteddtltag") <<  "Nesteddtl: Removed processed node from arrQueue " << arrStruct.arrQueue.size() << std::endl;
-            }
-        } 
       }
     }
   }
-  if ((options().smt.nesteddtl) && (node.getKind() == Kind::SELECT))
-{
+
+  if ((options().smt.nesteddtl) && (node.getKind() == Kind::SELECT)){
     Trace("nesteddtltag") <<  "Nesteddtl: SELECT node found: " << node << std::endl;
 
     Node array = node[0];
@@ -751,170 +801,12 @@ void TheoryArrays::preRegisterTermInternal(TNode node)
 
         if (arrStruct.seenSelects.find(node) != arrStruct.seenSelects.end())
         {
-            Trace("nesteddtltag") <<  "Nesteddtl: SELECT node already seen" << std::endl;
-        } else
-        {
+          Trace("nesteddtltag") <<  "Nesteddtl: SELECT node already seen" << std::endl;
+        } else {
           arrStruct.seenSelects.insert(node);
-          Trace("nesteddtltag") <<  "Nesteddtl: Added node to seenSelects" << std::endl;
-          if ((!arrStruct.consToArrInitialized) && (array.getKind() == Kind::APPLY_UF))
-          {
-              Node uf = array.getOperator();
-              Trace("nesteddtltag") <<  "Nesteddtl: Found APPLY_UF with operator: " << uf << std::endl;
-
-              // Check if the function starts with the prefix
-              if (uf.toString().find(prefix) != std::string::npos)
-              {
-                  Trace("nesteddtltag") <<  "Nesteddtl: Operator starts with prefix" << std::endl;
-
-                  arrStruct.consToArr = uf;
-                  // Make a TypeNode for the reverse uf
-                  TypeNode input = uf.getType().getArgTypes()[0];
-                  TypeNode output = uf.getType().getRangeType();
-                  Trace("nesteddtltag") <<  "Nesteddtl: input type: " << input << ", output type: " << output << std::endl;
-
-                  TypeNode reverseType = NodeManager::currentNM()->mkFunctionType(output, input);
-                  SkolemManager* sm = NodeManager::currentNM()->getSkolemManager();
-                  arrStruct.arrToCons = sm->mkDummySkolem(prefix + "_reverse", reverseType);
-                  Trace("nesteddtltag") <<  "Nesteddtl: Created arrToCons function: " << arrStruct.arrToCons << std::endl;
-                  
-                  arrStruct.consToArrInitialized = true;
-              }
-          }
-
           arrStruct.selectQueue.insert(node);
-          Trace("nesteddtltag") <<  "Nesteddtl: Added node to selectQueue" << std::endl;
-
-          while (!arrStruct.selectQueue.empty() && arrStruct.consToArrInitialized)
-          {
-              // Get the first element from the set
-              Node currentSelect = *arrStruct.selectQueue.begin();
-              array = currentSelect[0];
-              Node index = currentSelect[1];
-              Trace("nesteddtltag") <<  "Nesteddtl: Processing select node: " << currentSelect << "size: " << arrStruct.selectQueue.size()<< std::endl;
-              Trace("nesteddtltag") <<  "Nesteddtl: array: " << array << ", index: " << index << std::endl;
-
-              if (arrStruct.orderedIndexes.find(index) == arrStruct.orderedIndexes.end())
-              {
-                  arrStruct.orderedIndexes[index] = arrStruct.orderedIndexes.size();
-                  Trace("nesteddtltag") <<  "Nesteddtl: New index: " << index
-                            << ", assigned number: " << arrStruct.orderedIndexes[index] << std::endl;
-              }
-
-              int indexNum = arrStruct.orderedIndexes[index];
-              Trace("nesteddtltag") <<  "Nesteddtl: indexNum for index " << index << " is " << indexNum << std::endl;
-
-              Node consArray = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
-              Trace("nesteddtltag") <<  "Nesteddtl: consArray: " << consArray << std::endl;
-
-              DType dt = consArray.getType().getDType();
-              Node car, cdr, nil;
-              Trace("nesteddtltag") <<  "Nesteddtl: consArray type DType: " << dt << std::endl;
-
-              // Iterate over the constructors of the datatype
-              for (unsigned i = 0; i < dt.getNumConstructors(); i++)
-              {
-                  DTypeConstructor ctor = dt[i];
-                  Trace("nesteddtltag") <<  "Nesteddtl: Constructor " << i << ": " << ctor.getName() << std::endl;
-                  
-                  if (ctor.getNumArgs()==0){
-                    nil = ctor.getConstructor();
-                    Trace("nesteddtltag") <<  "Nesteddtl: nil set to constructor: " << nil << std::endl;
-                  }
-                  // Iterate over the arguments of the constructor
-                  for (unsigned j = 0; j < ctor.getNumArgs(); j++)
-                  {
-                      TypeNode argType = ctor[j].getRangeType();
-                      Trace("nesteddtltag") <<  "Nesteddtl: Arg " << j << " type: " << argType << std::endl;
-
-                      if (argType == consArray.getType())
-                      {
-                          cdr = ctor[j].getSelector();
-                          Trace("nesteddtltag") <<  "Nesteddtl: cdr set to selector: " << cdr << std::endl;
-                      }
-                      else
-                      {
-                          car = ctor[j].getSelector();
-                          Trace("nesteddtltag") <<  "Nesteddtl: car set to selector: " << car << std::endl;
-                      }
-                  }
-              }
-
-              Node cur = consArray;
-              Node lemma = cur.eqNode(nil).notNode();
-                  if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
-                      d_im.arrayLemma(lemma,
-                                      InferenceId::NONE,
-                                      nodeManager()->mkConst(true),
-                                      ProofRule::UNKNOWN);
-                      arrStruct.addedLemmas.insert(lemma);
-                    }
-              for (int i = 0; i < indexNum; i++)
-              {
-                  cur = nodeManager()->mkNode(Kind::APPLY_SELECTOR, cdr, cur);
-                  Trace("nesteddtltag") <<  "Nesteddtl: Applied cdr, cur is now: " << cur << std::endl;
-                  lemma = cur.eqNode(nil).notNode();
-                  if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
-                      d_im.arrayLemma(lemma,
-                                      InferenceId::NONE,
-                                      nodeManager()->mkConst(true),
-                                      ProofRule::UNKNOWN);
-                      arrStruct.addedLemmas.insert(lemma);
-                    }
-              }
-
-              cur = nodeManager()->mkNode(Kind::APPLY_SELECTOR, car, cur);
-              Trace("nesteddtltag") <<  "Nesteddtl: Applied car, cur is now: " << cur << std::endl;
-
-              lemma = cur.eqNode(currentSelect);
-              Trace("nesteddtltag") <<  "Nesteddtl: Lemma: " << lemma << std::endl;
-
-              if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
-                      d_im.arrayLemma(lemma,
-                                      InferenceId::NONE,
-                                      nodeManager()->mkConst(true),
-                                      ProofRule::UNKNOWN);
-                      arrStruct.addedLemmas.insert(lemma);
-                    }
-
-              // Remove the processed element from the set
-              arrStruct.selectQueue.erase(arrStruct.selectQueue.begin());
-              Trace("nesteddtltag") <<  "Nesteddtl: Removed processed node from selectQueue " << arrStruct.selectQueue.size() << std::endl;
-          }
-          arrStruct.arrQueue.insert(array);
-          while(!arrStruct.arrQueue.empty() && arrStruct.consToArrInitialized){
-            array = *arrStruct.arrQueue.begin();
-
-            if (arrStruct.seenArrays.find(array) == arrStruct.seenArrays.end())
-              {
-                  arrStruct.seenArrays.insert(array);
-                  Trace("nesteddtltag") <<  "Nesteddtl: Adding lemma for array: " << array << std::endl;
-                  // make lemma to be a const of false
-                  Node lemma = nodeManager()->mkConst(false);
-                  if (array.getKind() == Kind::APPLY_UF){
-                    if (array.getOperator() == arrStruct.consToArr){
-                      Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
-                      lemma = array[0].eqNode(newNode);
-                    }
-                  }
-                  if (lemma == nodeManager()->mkConst(false)){
-                    Node newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.arrToCons, array);
-                    newNode = nodeManager()->mkNode(Kind::APPLY_UF, arrStruct.consToArr, newNode);
-                    lemma = array.eqNode(newNode);
-                  }
-                  
-                  Trace("nesteddtltag") <<  "Nesteddtl: Lemma: " << lemma << std::endl;
-                  if (arrStruct.addedLemmas.find(lemma) == arrStruct.addedLemmas.end()){
-                      d_im.arrayLemma(lemma,
-                                      InferenceId::NONE,
-                                      nodeManager()->mkConst(true),
-                                      ProofRule::UNKNOWN);
-                      arrStruct.addedLemmas.insert(lemma);
-                    }
-              }
-              arrStruct.seenArrays.emplace(*arrStruct.arrQueue.begin());
-              arrStruct.arrQueue.erase(arrStruct.arrQueue.begin());
-              Trace("nesteddtltag") <<  "Nesteddtl: Removed processed node from arrQueue " << arrStruct.arrQueue.size() << std::endl;
-          }
+          Trace("nesteddtltag") <<  "Nesteddtl: in select, arrStruct.selectQueue.size() " << arrStruct.selectQueue.size() << std::endl;
+          cleanQueue(&arrStruct);
         }
       }
   }

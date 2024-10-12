@@ -123,6 +123,15 @@ PreprocessingPassResult Nesteddtl::applyInternal(
         assertionsToPreprocess->replace(index, newAssertion);
     }
     
+    // Add the new assertions to the assertionsToPreprocess
+    std::set<Node> newAssertions;
+    addAssertionsArrays(&selectNodes, &boundVars, nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
+
+    for (const auto& newAssertion : newAssertions) {
+        assertionsToPreprocess->push_back(newAssertion);
+        Trace("nesteddttag")  <<  "New assertion: "  <<  newAssertion.toString()  <<  std::endl;
+    }
+    
     Trace("nesteddtltag")  <<  "___________________________"  <<  std::endl;
     // print assertions
     for (size_t i = 0, n = assertionsToPreprocess->size(); i < n; ++i) {
@@ -926,7 +935,6 @@ void Nesteddtl::addAssertionsArrays(std::set<Node>* selectNodes, std::set<Node>*
 
                 assertion = nm->mkNode(Kind::EQUAL, newArrayNode[0], applyArrToCons);
                 newAssertions->insert(assertion);
-                continue;
             }
         }
         consToArrFunc = (*ufArrays)[originalArray.getType()][0];
