@@ -31,6 +31,8 @@
 #include "theory/theory_model.h"
 #include "theory/trust_substitutions.h"
 #include "theory/valuation.h"
+#include "expr/dtype.h"
+#include "expr/dtype_cons.h"
 
 using namespace std;
 
@@ -652,6 +654,25 @@ void TheoryArrays::checkWeakEquiv(bool arraysMerged) {
  */
 void TheoryArrays::preRegisterTermInternal(TNode node)
 {
+  justOnce += 1;
+  if (justOnce == 5) {
+    // Extract the recursive array from the node
+    Node recursiveArray = node[0][0];
+    DType dataType = recursiveArray.getType().getDType();
+
+    // Create the first lemma: not(recursiveArray = dataType[0].getConstructor())
+    Node firstLemma = recursiveArray.eqNode(dataType[0].getConstructor()).notNode();
+    d_im.arrayLemma(firstLemma, InferenceId::NONE, nodeManager()->mkConst(true), ProofRule::UNKNOWN);
+
+    // Create a selector node from the data type
+    Node selector = dataType[1][0].getSelector();
+    Node selectedNode = nodeManager()->mkNode(Kind::APPLY_SELECTOR, selector, recursiveArray);
+
+    // Create the second lemma: node = selectedNode
+    Node secondLemma = node.eqNode(selectedNode);
+    d_im.arrayLemma(secondLemma, InferenceId::NONE, nodeManager()->mkConst(true), ProofRule::UNKNOWN);
+  }  
+
   if (d_state.isInConflict())
   {
     return;

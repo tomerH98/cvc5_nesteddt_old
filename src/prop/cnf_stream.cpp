@@ -495,6 +495,10 @@ SatLiteral CnfStream::toCNF(TNode node, bool negated)
   while (!visit.empty())
   {
     cur = visit.back();
+    if (! cur.getType().isBoolean())
+    {
+      Trace("temp") << "toCNF(): non-Boolean node: " << cur << "\n";
+    }
     Assert(cur.getType().isBoolean());
 
     if (hasLiteral(cur))

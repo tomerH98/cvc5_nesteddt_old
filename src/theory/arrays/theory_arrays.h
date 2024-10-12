@@ -102,6 +102,9 @@ class TheoryArrays : public Theory {
 
  private:
 
+  /** temp */
+  int justOnce = 0;
+
   /** True node for predicates = true */
   Node d_true;
 
