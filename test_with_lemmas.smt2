@@ -7,4 +7,7 @@
 (assert (not (= x_rc_2 nT_rc)))
 (assert (= (arr_rc x_rc_2) (g (f (arr_rc x_rc_2)))))
 (assert (= (f (arr_rc x_rc_2)) (f (g (f (arr_rc x_rc_2))))))
+
+(assert (not (= nil_Int_T (g (f (arr_rc x_rc_2))))))
 (check-sat)
+
