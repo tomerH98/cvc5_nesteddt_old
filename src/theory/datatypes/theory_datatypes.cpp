@@ -1261,6 +1261,7 @@ bool TheoryDatatypes::instantiate(EqcInfo* eqc, Node n)
 void TheoryDatatypes::checkCycles() {
   Trace("datatypes-cycle-check") << "Check acyclicity" << std::endl;
   std::vector< Node > cdt_eqc;
+  std::map< TNode, bool > visited;
   eq::EqClassesIterator eqcs_i = eq::EqClassesIterator(d_equalityEngine);
   while( !eqcs_i.isFinished() ){
     Node eqc = (*eqcs_i);
@@ -1270,8 +1271,6 @@ void TheoryDatatypes::checkCycles() {
         if (options().datatypes.dtCyclic)
         {
           //do cycle checks
-          std::map< TNode, bool > visited;
-          std::map< TNode, bool > proc;
           std::vector<Node> expl;
           Trace("datatypes-cycle-check") << "...search for cycle starting at " << eqc << std::endl;
           Node cn = searchForCycle(eqc, visited, expl);
@@ -1472,7 +1471,6 @@ Node TheoryDatatypes::searchForCycle(TNode n,
 
     struct NodeState {
         TNode node;          // Current node being processed
-        TNode cons;          // Constructor for the current node
         size_t currentEdge;  // Index of the neighbor being processed
         Node expl_rep;       // Explanation node for representative equality
         Node expl_cons;      // Explanation node for constructor equality
@@ -1492,8 +1490,17 @@ Node TheoryDatatypes::searchForCycle(TNode n,
         Trace("datatypes-cycle-check2") << "Node " << rep << " is already visited, skipping DFS." << endl;
         return Node::null();
     }
+    visited[rep] = true;
 
-    dfsStack.push({rep, cons, 0, explanation_rep, explanation_cons});
+    if (cons.getKind() != Kind::APPLY_CONSTRUCTOR) {
+        Trace("datatypes-cycle-check2") << "Node " << rep << " is not an constructor application, skipping DFS." << endl;
+        return Node::null();
+    } else{
+        Trace("datatypes-cycle-check2") << "Constructor of node " << rep << " is " << cons << endl; 
+    }
+
+
+    dfsStack.push({rep, 0, explanation_rep, explanation_cons});
     inStack.insert(rep);  // Add the initial node to the DFS stack
 
     Trace("datatypes-cycle-check2") << "Beginning DFS traversal." << endl;
@@ -1509,11 +1516,13 @@ Node TheoryDatatypes::searchForCycle(TNode n,
             Trace("datatypes-cycle-check2") << "Marked node " << currentNode << " as visited." << endl;
         }
 
-        cons = current.cons;
+        cons = getEqcConstructor(currentNode);
 
         // Check if all neighbors have been explored for the current node
-        if (cons.isNull() || cons.getKind() != Kind::APPLY_CONSTRUCTOR || current.currentEdge >= cons.getNumChildren()) {
+        if (cons.getKind() != Kind::APPLY_CONSTRUCTOR || current.currentEdge >= cons.getNumChildren()) {
             Trace("datatypes-cycle-check2") << "All neighbors of node " << currentNode << " explored, backtracking." << endl;
+            Trace("datatypes-cycle-check2") <<"cons.getKind(): " << cons.getKind() << " current.currentEdge: " << current.currentEdge << " cons.getNumChildren()" << cons.getNumChildren() << endl;
+            
             inStack.erase(currentNode);
             dfsStack.pop();
             continue;
@@ -1551,7 +1560,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
 
             Trace("datatypes-cycle-check2") << "Returning node " << rep << " due to cycle detection." << endl;
             return rep;
-        } else if (visited.find(neighbor) != visited.end()) {
+        } else if (visited.find(rep) != visited.end()) {
             Trace("datatypes-cycle-check2") << "Neighbor " << neighbor << " already visited, skipping." << endl;
         } else {
             // Prepare explanations for the new neighbor node being added to the stack
@@ -1559,7 +1568,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
             explanation_cons = (cons == neighbor) ? Node::null() : neighbor.eqNode(cons);
 
             Trace("datatypes-cycle-check2") << "Pushing neighbor " << neighbor << " (representative " << rep << ") onto the DFS stack." << endl;
-            dfsStack.push({rep, cons, 0, explanation_rep, explanation_cons});
+            dfsStack.push({rep, 0, explanation_rep, explanation_cons});
             inStack.insert(rep);
         }
     }
