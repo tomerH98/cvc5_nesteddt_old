@@ -1472,7 +1472,7 @@ void TheoryDatatypes::separateBisimilar(
   }
 }
 
-//postcondition: if cycle detected, explanation is why n is a subterm of on
+// Postcondition: If a cycle is detected, 'explanation' contains the reason why 'n' is a subterm of 'on'.
 Node TheoryDatatypes::searchForCycle(TNode n,
                                      TNode on,
                                      std::map<TNode, bool>& visited,
@@ -1481,126 +1481,105 @@ Node TheoryDatatypes::searchForCycle(TNode n,
                                      bool firstTime)
 {
     Trace("datatypes-cycle-check2") << "________________________" << endl;
-    Trace("datatypes-cycle-check2") << "Search for cycle " << n << " on node " << on << endl;
+    Trace("datatypes-cycle-check2") << "Starting cycle search for node " << n << " on root node " << on << endl;
 
     struct NodeState {
-        TNode node;           // Current node
-        TNode cons;
-        size_t currentEdge;   // Index of the current neighbor being explored
-        Node expl_rep; // Explanation node (e.g., equality)
-        Node expl_cons; // Explanation node (e.g., equality)
+        TNode node;          // Current node being processed
+        TNode cons;          // Constructor for the current node
+        size_t currentEdge;  // Index of the neighbor being processed
+        Node expl_rep;       // Explanation node for representative equality
+        Node expl_cons;      // Explanation node for constructor equality
     };
 
-    std::unordered_set<TNode> inStack;     // Nodes currently in the DFS stack
-    std::stack<NodeState> dfsStack;        // Stack for DFS traversal
+    std::unordered_set<TNode> inStack;   // Tracks nodes in the current DFS stack
+    std::stack<NodeState> dfsStack;      // Stack for DFS traversal
 
     TNode rep = getRepresentative(n);
     TNode cons = getEqcConstructor(n);
-    TNode neighbor;
-    Node explanation_rep, explanation_cons;
+    Node explanation_rep = (n == rep) ? Node::null() : n.eqNode(rep);
+    Node explanation_cons = (cons == n) ? Node::null() : n.eqNode(cons);
 
     Trace("datatypes-cycle-check2") << "Representative of node " << n << " is " << rep << endl;
 
     if (visited.find(rep) != visited.end()) {
-        Trace("datatypes-cycle-check2") << "Start node " << rep << " is already visited, skipping DFS." << endl;
+        Trace("datatypes-cycle-check2") << "Node " << rep << " is already visited, skipping DFS." << endl;
         return Node::null();
     }
 
-    if (n == rep){
-      explanation_rep = Node::null();
-    } else {
-      explanation_rep = n.eqNode(rep);
-    }
-
-    if (cons == n) {
-        explanation_cons = Node::null();
-    } else {
-        explanation_cons = n.eqNode(cons);
-    }
-
     dfsStack.push({rep, cons, 0, explanation_rep, explanation_cons});
-    inStack.insert(rep); // Mark the start node as part of the current DFS path
+    inStack.insert(rep);  // Add the initial node to the DFS stack
 
-    Trace("datatypes-cycle-check2") << "Starting DFS traversal." << endl;
+    Trace("datatypes-cycle-check2") << "Beginning DFS traversal." << endl;
     while (!dfsStack.empty()) {
         NodeState& current = dfsStack.top();
         TNode currentNode = current.node;
 
-        Trace("datatypes-cycle-check2") << "Exploring node " << currentNode << " with edge index " << current.currentEdge << endl;
+        Trace("datatypes-cycle-check2") << "Inspecting node " << currentNode << " at edge index " << current.currentEdge << endl;
 
+        // Mark the node as visited if it's the first time encountering it
         if (visited.find(currentNode) == visited.end()) {
             visited[currentNode] = true;
-            Trace("datatypes-cycle-check2") << "Marking node " << currentNode << " as visited." << endl;
+            Trace("datatypes-cycle-check2") << "Marked node " << currentNode << " as visited." << endl;
         }
 
         cons = current.cons;
-        Trace("datatypes-cycle-check2") << "Constructor of node " << currentNode << " is " << cons << endl;
 
+        // Check if all neighbors have been explored for the current node
         if (cons.isNull() || cons.getKind() != Kind::APPLY_CONSTRUCTOR || current.currentEdge >= cons.getNumChildren()) {
-            Trace("datatypes-cycle-check2") << "All edges explored for node " << currentNode << ", backtracking." << endl;
+            Trace("datatypes-cycle-check2") << "All neighbors of node " << currentNode << " explored, backtracking." << endl;
             inStack.erase(currentNode);
             dfsStack.pop();
             continue;
         }
 
-        neighbor = cons[current.currentEdge];
+        TNode neighbor = cons[current.currentEdge];
         rep = getRepresentative(neighbor);
         cons = getEqcConstructor(neighbor);
-        Trace("datatypes-cycle-check2") << "Checking neighbor " << neighbor << " of node " << currentNode << endl;
-        current.currentEdge++;
+        Trace("datatypes-cycle-check2") << "Processing neighbor " << neighbor << " of node " << currentNode << endl;
+        current.currentEdge++;  // Move to the next neighbor for the current node
 
         if (inStack.find(rep) != inStack.end()) {
+            // A cycle is detected
             Trace("datatypes-cycle-check2") << "Cycle detected involving node " << neighbor << endl;
-            if (neighbor != rep) {
-                explanation.push_back(neighbor.eqNode(rep));
-            }
-            if (neighbor != cons) {
-                explanation.push_back(neighbor.eqNode(cons));
-            }
+
+            // Add necessary explanation steps for the cycle
+            if (neighbor != rep) explanation.push_back(neighbor.eqNode(rep));
+            if (neighbor != cons) explanation.push_back(neighbor.eqNode(cons));
+            
             while (!dfsStack.empty()) {
                 NodeState tempState = dfsStack.top();
                 Trace("datatypes-cycle-check2") << "Adding node " << tempState.node << " to explanation." << endl;
-                if (!tempState.expl_rep.isNull()) {
-                    explanation.push_back(tempState.expl_rep);
-                }
-                if (!tempState.expl_cons.isNull()) {
-                    explanation.push_back(tempState.expl_cons);
-                }
+                if (!tempState.expl_rep.isNull()) explanation.push_back(tempState.expl_rep);
+                if (!tempState.expl_cons.isNull()) explanation.push_back(tempState.expl_cons);
                 dfsStack.pop();
                 if (tempState.node == rep) break;
             }
-            
-            // print the content ot the explanation
+
+            // Print the collected explanation for the detected cycle
             Trace("new_dt_cycle") << "Cycle explanation: ";
             for (const Node& exp : explanation) {
                 Trace("new_dt_cycle") << exp << " ";
             }
-            Trace("datatypes-cycle-check2") << "Returning node " << rep << " as cycle detected." << endl;
+            Trace("new_dt_cycle") << endl;
+
+            Trace("datatypes-cycle-check2") << "Returning node " << rep << " due to cycle detection." << endl;
             return rep;
         } else if (visited.find(neighbor) != visited.end()) {
             Trace("datatypes-cycle-check2") << "Neighbor " << neighbor << " already visited, skipping." << endl;
         } else {
-            if (neighbor == rep){
-              explanation_rep = Node::null();
-            } else {
-              explanation_rep = neighbor.eqNode(rep);
-            }
+            // Prepare explanations for the new neighbor node being added to the stack
+            explanation_rep = (neighbor == rep) ? Node::null() : neighbor.eqNode(rep);
+            explanation_cons = (cons == neighbor) ? Node::null() : neighbor.eqNode(cons);
 
-            if (cons == neighbor) {
-                explanation_cons = Node::null();
-            } else {
-                explanation_cons = neighbor.eqNode(cons);
-            }
-
-            Trace("datatypes-cycle-check2") << "Pushing neighbor " << neighbor << " (rep " << rep << ") onto stack." << endl;
+            Trace("datatypes-cycle-check2") << "Pushing neighbor " << neighbor << " (representative " << rep << ") onto the DFS stack." << endl;
             dfsStack.push({rep, cons, 0, explanation_rep, explanation_cons});
             inStack.insert(rep);
         }
     }
-    Trace("datatypes-cycle-check2") << "No cycle detected for node " << n << ", returning null." << endl;
+
+    Trace("datatypes-cycle-check2") << "No cycle detected for node " << n << ". Returning null." << endl;
     return Node::null();
 }
-
 void TheoryDatatypes::checkSplit()
 {
   // get the relevant term set, currently all datatype equivalence classes
