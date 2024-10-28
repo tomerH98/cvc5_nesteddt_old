@@ -245,11 +245,8 @@ private:
   /** for checking if cycles exist */
   void checkCycles();
   Node searchForCycle(TNode n,
-                      TNode on,
                       std::map<TNode, bool>& visited,
-                      std::map<TNode, bool>& proc,
-                      std::vector<Node>& explanation,
-                      bool firstTime = true);
+                      std::vector<Node>& explanation);
   /**
    * Applying splitting.
    *

@@ -1274,18 +1274,8 @@ void TheoryDatatypes::checkCycles() {
           std::map< TNode, bool > proc;
           std::vector<Node> expl;
           Trace("datatypes-cycle-check") << "...search for cycle starting at " << eqc << std::endl;
-          Node cn = searchForCycle( eqc, eqc, visited, proc, expl );
+          Node cn = searchForCycle(eqc, visited, expl);
           Trace("datatypes-cycle-check") << "...finish." << std::endl;
-          //if we discovered a different cycle while searching this one
-          if( !cn.isNull() && cn!=eqc ){
-            visited.clear();
-            proc.clear();
-            expl.clear();
-            Node prev = cn;
-            cn = searchForCycle( cn, cn, visited, proc, expl );
-            Assert(prev == cn);
-          }
-
           if( !cn.isNull() ) {
             Assert(expl.size() > 0);
             Trace("dt-conflict")
@@ -1474,14 +1464,11 @@ void TheoryDatatypes::separateBisimilar(
 
 // Postcondition: If a cycle is detected, 'explanation' contains the reason why 'n' is a subterm of 'on'.
 Node TheoryDatatypes::searchForCycle(TNode n,
-                                     TNode on,
                                      std::map<TNode, bool>& visited,
-                                     std::map<TNode, bool>& proc,
-                                     std::vector<Node>& explanation,
-                                     bool firstTime)
+                                     std::vector<Node>& explanation)
 {
     Trace("datatypes-cycle-check2") << "________________________" << endl;
-    Trace("datatypes-cycle-check2") << "Starting cycle search for node " << n << " on root node " << on << endl;
+    Trace("datatypes-cycle-check2") << "Starting cycle search for node " << n << endl;
 
     struct NodeState {
         TNode node;          // Current node being processed
