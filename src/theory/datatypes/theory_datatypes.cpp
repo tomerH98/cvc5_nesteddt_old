@@ -1485,6 +1485,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
 
     struct NodeState {
         TNode node;           // Current node
+        TNode cons;
         size_t currentEdge;   // Index of the current neighbor being explored
         Node expl_rep; // Explanation node (e.g., equality)
         Node expl_cons; // Explanation node (e.g., equality)
@@ -1517,7 +1518,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
         explanation_cons = n.eqNode(cons);
     }
 
-    dfsStack.push({rep, 0, explanation_rep, explanation_cons});
+    dfsStack.push({rep, cons, 0, explanation_rep, explanation_cons});
     inStack.insert(rep); // Mark the start node as part of the current DFS path
 
     Trace("datatypes-cycle-check2") << "Starting DFS traversal." << endl;
@@ -1532,7 +1533,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
             Trace("datatypes-cycle-check2") << "Marking node " << currentNode << " as visited." << endl;
         }
 
-        cons = getEqcConstructor(currentNode);
+        cons = current.cons;
         Trace("datatypes-cycle-check2") << "Constructor of node " << currentNode << " is " << cons << endl;
 
         if (cons.isNull() || cons.getKind() != Kind::APPLY_CONSTRUCTOR || current.currentEdge >= cons.getNumChildren()) {
@@ -1550,29 +1551,25 @@ Node TheoryDatatypes::searchForCycle(TNode n,
 
         if (inStack.find(rep) != inStack.end()) {
             Trace("datatypes-cycle-check2") << "Cycle detected involving node " << neighbor << endl;
-            std::stack<NodeState> tempStack = dfsStack;
-            std::vector<NodeState> cycleNodes;
             if (neighbor != rep) {
                 explanation.push_back(neighbor.eqNode(rep));
             }
             if (neighbor != cons) {
                 explanation.push_back(neighbor.eqNode(cons));
             }
-            while (!tempStack.empty()) {
-                NodeState tempState = tempStack.top();
+            while (!dfsStack.empty()) {
+                NodeState tempState = dfsStack.top();
                 Trace("datatypes-cycle-check2") << "Adding node " << tempState.node << " to explanation." << endl;
-                cycleNodes.push_back(tempState);
-                tempStack.pop();
+                if (!tempState.expl_rep.isNull()) {
+                    explanation.push_back(tempState.expl_rep);
+                }
+                if (!tempState.expl_cons.isNull()) {
+                    explanation.push_back(tempState.expl_cons);
+                }
+                dfsStack.pop();
                 if (tempState.node == rep) break;
             }
-            for (auto it = cycleNodes.rbegin(); it != cycleNodes.rend(); ++it) {
-                if (!it->expl_rep.isNull()) {
-                    explanation.push_back(it->expl_rep);
-                }
-                if (!it->expl_cons.isNull()) {
-                    explanation.push_back(it->expl_cons);
-                }
-            }
+            
             // print the content ot the explanation
             Trace("new_dt_cycle") << "Cycle explanation: ";
             for (const Node& exp : explanation) {
@@ -1596,8 +1593,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
             }
 
             Trace("datatypes-cycle-check2") << "Pushing neighbor " << neighbor << " (rep " << rep << ") onto stack." << endl;
-            dfsStack.push({rep, 0, explanation_rep, explanation_cons});
-
+            dfsStack.push({rep, cons, 0, explanation_rep, explanation_cons});
             inStack.insert(rep);
         }
     }
