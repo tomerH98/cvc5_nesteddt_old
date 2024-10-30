@@ -73,15 +73,21 @@ PreprocessingPassResult Nesteddtl::applyInternal(
     std::map<TypeNode, TypeNode> mapTypeNode;
     declareNewTypes(&constructoredTypes, &arrayTypes, &seqTypes, &mapDType, &mapTypeNode, nm);
 
+    Trace("nesteddtltag")  <<  "after declareNewTypes"  <<  std::endl;
+
     // Define the array types in the map
     defineArraySeqInMap(&mapDType, &mapTypeNode, &arrayTypes, &seqTypes, &selextIndexes, &seqNthIndexes, nm);
 
     // Define the constructored types in the map
     defineConstructoredInMap(&mapDType, &mapTypeNode, nm);
 
+    Trace("nesteddtltag")  <<  "after defineConstructoredInMap"  <<  std::endl;
+
     // Resolve the map
     std::map<TypeNode, TypeNode> resolvedMap;
     createResolvedMap(&mapDType, nm, &resolvedMap);
+
+    Trace("nesteddtltag")  <<  "after createResolvedMap"  <<  std::endl;
     // print the resolvedMap
     for (const auto& pair : resolvedMap) {
         Trace("nesteddtltag")  <<  "createResolvedMap - Old type: "  <<  pair.first  <<  " New type: "  <<  pair.second  <<  std::endl;
@@ -574,10 +580,7 @@ void Nesteddtl::defineArraySeqInMap(std::map<TypeNode, DType>* mapDType, std::ma
         std::shared_ptr<DTypeConstructor> cons = std::make_shared<DTypeConstructor>("cons");
         // Iterate over the select assertions of the arrayType
         TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
-        cons->addArg("car", newElementType);
-        cons->addArg("cdr", newArrType);
-           
-        newDType.addConstructor(cons);
+        cons->addArg("id", nm->integerType());
         // Insert the new type into the mapDType
         (*mapDType).insert(std::pair<TypeNode, DType>(arrayType, newDType));
     }
@@ -603,8 +606,7 @@ void Nesteddtl::defineArraySeqInMap(std::map<TypeNode, DType>* mapDType, std::ma
         std::shared_ptr<DTypeConstructor> cons = std::make_shared<DTypeConstructor>("cons");
         // Iterate over the select assertions of the arrayType
         TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
-        cons->addArg("cdr", newElementType);
-        cons->addArg("car", newSeqType);
+        cons->addArg("id", nm->integerType());
            
         newDType.addConstructor(cons);
         // Insert the new type into the mapDType

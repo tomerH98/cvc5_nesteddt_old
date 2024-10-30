@@ -1,17 +1,17 @@
-;;; assertions::post-nesteddt start
+; COMMAND-LINE: --nesteddt --dt-blast-splits
+; EXPECT: unsat
+; DISABLE-TESTER: model
 (set-logic ALL)
-(declare-datatypes ((|Array_[Int_T]_rc| 0)(T_rc 0)) (((cons (id Int) (index_0 T_rc)))((nT_rc) (cons_rc (id_rc Int) (arr_rc |Array_[Int_T]_rc|)))))
-(declare-fun |_Array_[Int_T]_rc__1_6| ((Array Int T_rc)) |Array_[Int_T]_rc|)
-(declare-fun a_rc_3 () |Array_[Int_T]_rc|)
-(declare-fun x_rc_2 () T_rc)
-(declare-fun |_Array_[Int_T]_rc__0_5| (|Array_[Int_T]_rc|) (Array Int T_rc))
-(declare-fun a1_rc_4 () |Array_[Int_T]_rc|)
-(assert (forall ((a1_rc_4 |Array_[Int_T]_rc|)) (= x_rc_2 (select (|_Array_[Int_T]_rc__0_5| a1_rc_4) 0))))
-(assert (= (|_Array_[Int_T]_rc__0_5| a_rc_3) (|_Array_[Int_T]_rc__0_5| (arr_rc x_rc_2))))
-(assert (not (= x_rc_2 nT_rc)))
-(assert (forall ((arr_forall |Array_[Int_T]_rc|)) (= arr_forall (|_Array_[Int_T]_rc__1_6| (|_Array_[Int_T]_rc__0_5| arr_forall)))))
-(assert (forall ((arr_forall0_5 (Array Int T_rc))) (= arr_forall0_5 (|_Array_[Int_T]_rc__0_5| (|_Array_[Int_T]_rc__1_6| arr_forall0_5)))))
-(assert (forall ((arr_forall3_0 |Array_[Int_T]_rc|)) (= (index_0 arr_forall3_0) (select (|_Array_[Int_T]_rc__0_5| arr_forall3_0) 0))))
-(assert (= a_rc_3 (|_Array_[Int_T]_rc__1_6| (|_Array_[Int_T]_rc__0_5| a_rc_3))))
-(assert (let ((_let_1 (arr_rc x_rc_2))) (= _let_1 (|_Array_[Int_T]_rc__1_6| (|_Array_[Int_T]_rc__0_5| _let_1)))))
+(set-option :dt-nested-rec true)
+
+(declare-datatypes ((T 0)) (((nT) (cons (id Int) (arr (Array Int T)) ) ) ))
+
+(declare-const x T)
+(declare-const a (Array Int T))
+
+(assert (= x (select a 0)))
+(assert (= a (arr x)))
+
+(assert (not (= x nT)))
+
 (check-sat)

@@ -33,7 +33,6 @@
 #include "theory/theory_state.h"
 #include "theory/uf/equality_engine.h"
 #include "util/statistics_stats.h"
-#include "preprocessing/passes/nesteddtl.h"
 
 namespace cvc5::internal {
 namespace theory {
@@ -95,17 +94,6 @@ static inline std::string spaces(int level)
   return indentStr;
 }
 
-struct ArrayStruct
-{
-    std::set<Node> addedLemmas;  
-    std::set<Node> seenSelects;           
-    std::map<Node, int> orderedIndexes; 
-    Node consToArr;                     
-    Node arrToCons;                    
-    std::set<Node> selectQueue;        
-    bool consToArrInitialized = false; 
-};
-
 class TheoryArrays : public Theory {
 
   /////////////////////////////////////////////////////////////////////////////
@@ -113,8 +101,6 @@ class TheoryArrays : public Theory {
   /////////////////////////////////////////////////////////////////////////////
 
  private:
-
-  std::map<TypeNode, ArrayStruct> nesteddtlArrInfo;
 
   /** True node for predicates = true */
   Node d_true;
@@ -229,8 +215,6 @@ class TheoryArrays : public Theory {
 
   /** Helper for preRegisterTerm, also used internally */
   void preRegisterTermInternal(TNode n);
-
-  void cleanQueue(ArrayStruct* arrStruct);
 
  public:
   void preRegisterTerm(TNode n) override;
