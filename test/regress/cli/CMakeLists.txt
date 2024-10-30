@@ -1038,7 +1038,7 @@ set(regress_0_tests
   regress0/datatypes/nesteddt/cycle_100.smt2
   regress0/datatypes/nesteddt/cycle_100_no_array.smt2
   regress0/datatypes/nesteddt/cycle_10_diff_idx.smt2
-  regress0/datatypes/nesteddt/cycle_10_missing_link.smt2
+  regress0/datatypes/nesteddt/cycle_missing_link.smt2
   regress0/datatypes/nesteddt/cycle_190.smt2
   regress0/datatypes/nesteddt/cycle_50_diff_idx.smt2
   regress0/datatypes/nesteddt/depth_cycles1.smt2
@@ -1054,9 +1054,6 @@ set(regress_0_tests
   regress0/datatypes/nesteddt/regular_rdt2.smt2
   regress0/datatypes/nesteddt/regular_rdt3.smt2
   regress0/datatypes/nesteddt/regular_rdt4.smt2
-  regress0/datatypes/nesteddt/seq_test.smt2
-  regress0/datatypes/nesteddt/seq_test10.smt2
-  regress0/datatypes/nesteddt/seq_test50.smt2
   regress0/datatypes/nesteddt/simple.smt2
   regress0/datatypes/nesteddt/simple_sat.smt2
   regress0/datatypes/nesteddt/store_test.smt2

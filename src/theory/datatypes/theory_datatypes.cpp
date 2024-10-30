@@ -1272,28 +1272,34 @@ void TheoryDatatypes::checkCycles() {
       TNode eqc = (*eqcs_i);
       Trace("ndtl") << "check eqc " << eqc << " kind: " << eqc.getKind() << std::endl;
       TypeNode tn = eqc.getType();
-      if (eqc.getKind() == Kind::SELECT){
-        Trace("ndtl") << "  select" << std::endl;
-        TNode arr = eqc[0];
-        if (arr.getType().toString().find(prefix) != std::string::npos){
-          Trace("ndtl") << "  found a nested term. its arr " << arr <<" rep " << getRepresentative(arr) << std::endl;
-          
-          TNode nested = getRepresentative(arr);
-          if (edges.find(nested) == edges.end()){
-            edges[nested] = std::vector<TNode>();
-          }
-          edges[nested].push_back(getRepresentative(eqc));
-        }
-        if(arr.getKind() == Kind::APPLY_UF){
-          if (arr.getOperator().toString().find(prefix) != std::string::npos){
-            TNode arr_rec = getRepresentative(arr[0]);
-            if (edges.find(arr_rec) == edges.end()){
-              edges[arr_rec] = std::vector<TNode>();
+      // Use the EqClassIterator to iterate over the equivalence class
+      for (eq::EqClassIterator it = eq::EqClassIterator(getRepresentative(eqc), d_equalityEngine); !it.isFinished(); ++it)
+      {
+        TNode n = *it;
+        if (n.getKind() == Kind::SELECT){
+          Trace("ndtl") << "  select" << std::endl;
+          TNode arr = n[0];
+          if (arr.getType().toString().find(prefix) != std::string::npos){
+            Trace("ndtl") << "  found a nested term. its arr " << arr <<" rep " << getRepresentative(arr) << std::endl;
+            
+            TNode nested = getRepresentative(arr);
+            if (edges.find(nested) == edges.end()){
+              edges[nested] = std::vector<TNode>();
             }
-            edges[arr_rec].push_back(getRepresentative(arr));
-          }          
+            edges[nested].push_back(getRepresentative(n));
+          }
+          if(arr.getKind() == Kind::APPLY_UF){
+            if (arr.getOperator().toString().find(prefix) != std::string::npos){
+              TNode arr_rec = getRepresentative(arr[0]);
+              if (edges.find(arr_rec) == edges.end()){
+                edges[arr_rec] = std::vector<TNode>();
+              }
+              edges[arr_rec].push_back(getRepresentative(arr));
+            }          
+          }
         }
       }
+      
       ++eqcs_i;
     }
 
@@ -1686,14 +1692,15 @@ Node TheoryDatatypes::searchForCycleNesteddtl(TNode n,
         cons = getEqcConstructor(currentNode);
 
         // Check if all neighbors have been explored for the current node
-        bool hasEdges = edges->find(rep) != edges->end();
+        bool hasEdgesVector = edges->find(rep) != edges->end();
         bool isConsApp = cons.getKind() == Kind::APPLY_CONSTRUCTOR;
         bool reachMaxEdges = current.currentEdge >= cons.getNumChildren();
         bool reachMaxEdgesVec = current.currentEdgeVector >= (*edges)[rep].size();
-        bool cont = (!hasEdges && (reachMaxEdges || !isConsApp)) || (hasEdges && reachMaxEdgesVec && reachMaxEdges);
+        bool cont = (!hasEdgesVector && (reachMaxEdges || !isConsApp)) || (hasEdgesVector && reachMaxEdgesVec && (reachMaxEdges || !isConsApp));
+        Trace("datatypes-cycle-check2") << "All the bool values: hasEdgesVector: " << hasEdgesVector << " isConsApp: " << isConsApp << " reachMaxEdges: " << reachMaxEdges << " reachMaxEdgesVec: " << reachMaxEdgesVec << endl;
+        Trace("datatypes-cycle-check2") << "current.currentEdge " << current.currentEdge << " cons.getNumChildren()" << cons.getNumChildren() << endl;
         if (cont) {
-            Trace("datatypes-cycle-check2") << "All the bool values: hasEdges: " << hasEdges << " isConsApp: " << isConsApp << " reachMaxEdges: " << reachMaxEdges << " reachMaxEdgesVec: " << reachMaxEdgesVec << endl;
-            Trace("datatypes-cycle-check2") << "All 3 bools in cont " << " (!hasEdges && (reachMaxEdges || !isConsApp)) " << (!hasEdges && (reachMaxEdges || !isConsApp)) << " (hasEdges && reachMaxEdgesVec && reachMaxEdges) " << (hasEdges && reachMaxEdgesVec && reachMaxEdges) << endl;
+            Trace("datatypes-cycle-check2") << "All 3 bools in cont " << " (!hasEdgesVector && (reachMaxEdges || !isConsApp)) " << (!hasEdgesVector && (reachMaxEdges || !isConsApp)) << " (hasEdges && reachMaxEdgesVec && reachMaxEdges) " << (hasEdgesVector && reachMaxEdgesVec && reachMaxEdges) << endl;
             Trace("datatypes-cycle-check2") << "All neighbors of node " << currentNode << " explored, backtracking." << endl;
             Trace("datatypes-cycle-check2") <<"cons.getKind(): " << cons.getKind() << " current.currentEdge: " << current.currentEdge << " cons.getNumChildren()" << cons.getNumChildren() << endl;
             
@@ -1702,12 +1709,12 @@ Node TheoryDatatypes::searchForCycleNesteddtl(TNode n,
             continue;
         }
 
-        TNode neighbor = reachMaxEdges ? (*edges)[rep][current.currentEdgeVector] : cons[current.currentEdge];
+        TNode neighbor = (!reachMaxEdges && isConsApp) ? cons[current.currentEdge] : (*edges)[rep][current.currentEdgeVector];
 
         rep = getRepresentative(neighbor);
         cons = getEqcConstructor(neighbor);
         Trace("datatypes-cycle-check2") << "Processing neighbor " << neighbor << " of node " << currentNode << endl;
-        if (!reachMaxEdges) current.currentEdge++;  
+        if (!reachMaxEdges && isConsApp) current.currentEdge++;  
         else current.currentEdgeVector++;
 
         if (inStack.find(rep) != inStack.end()) {

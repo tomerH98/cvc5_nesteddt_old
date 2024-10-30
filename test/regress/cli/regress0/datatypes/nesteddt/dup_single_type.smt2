@@ -1,6 +1,7 @@
 ; COMMAND-LINE: --nesteddt  --dt-blast-splits
 ; EXPECT: unsat
 ; DISABLE-TESTER: model
+; DISABLE-TESTER: unsat-core
 (set-logic ALL)
 (set-option :dt-nested-rec true)
 

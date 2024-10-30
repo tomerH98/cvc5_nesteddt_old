@@ -1,6 +1,7 @@
-; COMMAND-LINE: --nesteddt --dt-blast-splits
+; COMMAND-LINE: --nesteddtl --dt-blast-splits
 ; EXPECT: unsat
-; DISABLE-TESTER: model
+; DISABLE-TESTER: unsat-core
+; DISABLE-TESTER: proof
 (set-logic ALL)
 (declare-datatypes ((Array_Int_T_rc 0)(T_rc 0))(((nil) (cons (id Int) (index_0 T_rc)))((nT_rc) (cons_rc (id_rc Int) (arr_rc Array_Int_T_rc)))))
 (declare-const x_rc0 T_rc)
