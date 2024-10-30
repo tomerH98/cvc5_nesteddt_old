@@ -928,15 +928,16 @@ void Nesteddtl::addAssertionsArrays(std::set<Node>* selectNodes, std::set<Node>*
                 assertion = nm->mkNode(Kind::EQUAL, newArrayNode[0], applyArrToCons);
                 newAssertions->insert(assertion);
             }
+        } else{
+            consToArrFunc = (*ufArrays)[originalArray.getType()][0];
+            arrToConsFunc = (*ufArrays)[originalArray.getType()][1];
+
+            applyArrToCons = nm->mkNode(Kind::APPLY_UF, arrToConsFunc, newArrayNode);
+            Node arrAgain = nm->mkNode(Kind::APPLY_UF, consToArrFunc, applyArrToCons);
+
+            assertion = nm->mkNode(Kind::EQUAL, newArrayNode, arrAgain);
+            newAssertions->insert(assertion);
         }
-        consToArrFunc = (*ufArrays)[originalArray.getType()][0];
-        arrToConsFunc = (*ufArrays)[originalArray.getType()][1];
-
-        applyArrToCons = nm->mkNode(Kind::APPLY_UF, arrToConsFunc, newArrayNode);
-        Node arrAgain = nm->mkNode(Kind::APPLY_UF, consToArrFunc, applyArrToCons);
-
-        assertion = nm->mkNode(Kind::EQUAL, newArrayNode, arrAgain);
-        newAssertions->insert(assertion);
     }  
 }
 
