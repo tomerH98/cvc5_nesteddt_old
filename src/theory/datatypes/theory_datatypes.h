@@ -247,6 +247,11 @@ private:
   Node searchForCycle(TNode n,
                       std::map<TNode, bool>& visited,
                       std::vector<Node>& explanation);
+
+  Node searchForCycleNesteddtl(TNode n,
+                      std::map<TNode, bool>& visited,
+                      std::vector<Node>& explanation,
+                      std::map<TNode, std::vector<TNode>>* edges);
   /**
    * Applying splitting.
    *

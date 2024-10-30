@@ -42,6 +42,8 @@
 #include "theory/valuation.h"
 #include "util/rational.h"
 
+#include "preprocessing/passes/nesteddtl.h"
+
 using namespace std;
 using namespace cvc5::internal::kind;
 using namespace cvc5::context;
@@ -1259,6 +1261,51 @@ bool TheoryDatatypes::instantiate(EqcInfo* eqc, Node n)
 }
 
 void TheoryDatatypes::checkCycles() {
+  Trace("ndtl") << "*****************************************" << std::endl;
+  std::map<TNode, std::vector<TNode> > edges;
+  if (options().smt.nesteddtl){
+    Trace("ndtl") << "finding new edges" << std::endl;
+    std::string prefix = cvc5::internal::preprocessing::passes::Nesteddtl::nested_prefix;
+    
+    eq::EqClassesIterator eqcs_i = eq::EqClassesIterator(d_equalityEngine);
+    while( !eqcs_i.isFinished() ){
+      TNode eqc = (*eqcs_i);
+      Trace("ndtl") << "check eqc " << eqc << " kind: " << eqc.getKind() << std::endl;
+      TypeNode tn = eqc.getType();
+      if (eqc.getKind() == Kind::SELECT){
+        Trace("ndtl") << "  select" << std::endl;
+        TNode arr = eqc[0];
+        if (arr.getType().toString().find(prefix) != std::string::npos){
+          Trace("ndtl") << "  found a nested term. its arr " << arr <<" rep " << getRepresentative(arr) << std::endl;
+          
+          TNode nested = getRepresentative(arr);
+          if (edges.find(nested) == edges.end()){
+            edges[nested] = std::vector<TNode>();
+          }
+          edges[nested].push_back(getRepresentative(eqc));
+        }
+        if(arr.getKind() == Kind::APPLY_UF){
+          if (arr.getOperator().toString().find(prefix) != std::string::npos){
+            TNode arr_rec = getRepresentative(arr[0]);
+            if (edges.find(arr_rec) == edges.end()){
+              edges[arr_rec] = std::vector<TNode>();
+            }
+            edges[arr_rec].push_back(getRepresentative(arr));
+          }          
+        }
+      }
+      ++eqcs_i;
+    }
+
+    // print out the edges
+    Trace("ndtl") << "edges" << std::endl;
+    for (std::map<TNode, std::vector<TNode> >::iterator it = edges.begin(); it != edges.end(); ++it){
+      Trace("ndtl") << "node: " << it->first << std::endl;
+      for (std::vector<TNode>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2){
+        Trace("ndtl") << "  edge: " << *it2 << std::endl;
+      }
+    }
+  }  
   Trace("datatypes-cycle-check") << "Check acyclicity" << std::endl;
   std::vector< Node > cdt_eqc;
   std::map< TNode, bool > visited;
@@ -1273,7 +1320,10 @@ void TheoryDatatypes::checkCycles() {
           //do cycle checks
           std::vector<Node> expl;
           Trace("datatypes-cycle-check") << "...search for cycle starting at " << eqc << std::endl;
-          Node cn = searchForCycle(eqc, visited, expl);
+          Node cn = options().smt.nesteddtl
+             ? searchForCycleNesteddtl(eqc, visited, expl, &edges)
+             : searchForCycle(eqc, visited, expl);
+
           Trace("datatypes-cycle-check") << "...finish." << std::endl;
           if( !cn.isNull() ) {
             Assert(expl.size() > 0);
@@ -1576,6 +1626,113 @@ Node TheoryDatatypes::searchForCycle(TNode n,
     Trace("datatypes-cycle-check2") << "No cycle detected for node " << n << ". Returning null." << endl;
     return Node::null();
 }
+
+Node TheoryDatatypes::searchForCycleNesteddtl(TNode n,
+                                     std::map<TNode, bool>& visited,
+                                     std::vector<Node>& explanation,
+                                     std::map<TNode, std::vector<TNode>>* edges)
+{
+    Trace("datatypes-cycle-check2") << "________________________" << endl;
+    Trace("datatypes-cycle-check2") << "Starting cycle search for node " << n << endl;
+
+    struct NodeState {
+        TNode node;          // Current node being processed
+        size_t currentEdge;  // Index of the neighbor being processed
+        size_t currentEdgeVector;  // Index of the neighbor being processed
+        Node expl_rep;       // Explanation node for representative equality
+        Node expl_cons;      // Explanation node for constructor equality
+    };
+
+    std::unordered_set<TNode> inStack;   // Tracks nodes in the current DFS stack
+    std::stack<NodeState> dfsStack;      // Stack for DFS traversal
+
+    TNode rep = getRepresentative(n);
+    TNode cons = getEqcConstructor(n);
+    Node explanation_rep = (n == rep) ? Node::null() : n.eqNode(rep);
+    Node explanation_cons = (cons == n) ? Node::null() : n.eqNode(cons);
+
+    Trace("datatypes-cycle-check2") << "Representative of node " << n << " is " << rep << endl;
+
+    if (visited.find(rep) != visited.end()) {
+        Trace("datatypes-cycle-check2") << "Node " << rep << " is already visited, skipping DFS." << endl;
+        return Node::null();
+    }
+    visited[rep] = true;
+
+    if (cons.getKind() != Kind::APPLY_CONSTRUCTOR && (edges->find(rep) == edges->end())) {
+        Trace("datatypes-cycle-check2") << "Node " << rep << " is not an constructor application, nor does it have any edges, skipping DFS." << endl;
+        return Node::null();
+    } else{
+        Trace("datatypes-cycle-check2") << "Constructor of node " << rep << " is " << cons << endl; 
+    }
+
+
+    dfsStack.push({rep, 0, 0, explanation_rep, explanation_cons});
+    inStack.insert(rep);  // Add the initial node to the DFS stack
+
+    Trace("datatypes-cycle-check2") << "Beginning DFS traversal." << endl;
+    while (!dfsStack.empty()) {
+        NodeState& current = dfsStack.top();
+        TNode currentNode = current.node;
+
+        Trace("datatypes-cycle-check2") << "Inspecting node " << currentNode << " at edge index " << current.currentEdge << endl;
+
+        // Mark the node as visited if it's the first time encountering it
+        if (visited.find(currentNode) == visited.end()) {
+            visited[currentNode] = true;
+            Trace("datatypes-cycle-check2") << "Marked node " << currentNode << " as visited." << endl;
+        }
+
+        cons = getEqcConstructor(currentNode);
+
+        // Check if all neighbors have been explored for the current node
+        bool hasEdges = edges->find(rep) != edges->end();
+        bool isConsApp = cons.getKind() == Kind::APPLY_CONSTRUCTOR;
+        bool reachMaxEdges = current.currentEdge >= cons.getNumChildren();
+        bool reachMaxEdgesVec = current.currentEdgeVector >= (*edges)[rep].size();
+        bool cont = (!hasEdges && (reachMaxEdges || !isConsApp)) || (hasEdges && reachMaxEdgesVec && reachMaxEdges);
+        if (cont) {
+            Trace("datatypes-cycle-check2") << "All the bool values: hasEdges: " << hasEdges << " isConsApp: " << isConsApp << " reachMaxEdges: " << reachMaxEdges << " reachMaxEdgesVec: " << reachMaxEdgesVec << endl;
+            Trace("datatypes-cycle-check2") << "All 3 bools in cont " << " (!hasEdges && (reachMaxEdges || !isConsApp)) " << (!hasEdges && (reachMaxEdges || !isConsApp)) << " (hasEdges && reachMaxEdgesVec && reachMaxEdges) " << (hasEdges && reachMaxEdgesVec && reachMaxEdges) << endl;
+            Trace("datatypes-cycle-check2") << "All neighbors of node " << currentNode << " explored, backtracking." << endl;
+            Trace("datatypes-cycle-check2") <<"cons.getKind(): " << cons.getKind() << " current.currentEdge: " << current.currentEdge << " cons.getNumChildren()" << cons.getNumChildren() << endl;
+            
+            inStack.erase(currentNode);
+            dfsStack.pop();
+            continue;
+        }
+
+        TNode neighbor = reachMaxEdges ? (*edges)[rep][current.currentEdgeVector] : cons[current.currentEdge];
+
+        rep = getRepresentative(neighbor);
+        cons = getEqcConstructor(neighbor);
+        Trace("datatypes-cycle-check2") << "Processing neighbor " << neighbor << " of node " << currentNode << endl;
+        if (!reachMaxEdges) current.currentEdge++;  
+        else current.currentEdgeVector++;
+
+        if (inStack.find(rep) != inStack.end()) {
+            // A cycle is detected
+            Trace("datatypes-cycle-check2") << "Cycle detected involving node " << neighbor << endl;
+            explanation.push_back(rep.eqNode(rep));
+            return rep;
+        } else if (visited.find(rep) != visited.end()) {
+            Trace("datatypes-cycle-check2") << "Neighbor " << neighbor << " already visited, skipping." << endl;
+        } else {
+            // Prepare explanations for the new neighbor node being added to the stack
+            explanation_rep = (neighbor == rep) ? Node::null() : neighbor.eqNode(rep);
+            explanation_cons = (cons == neighbor) ? Node::null() : neighbor.eqNode(cons);
+
+            Trace("datatypes-cycle-check2") << "Pushing neighbor " << neighbor << " (representative " << rep << ") onto the DFS stack." << endl;
+            dfsStack.push({rep, 0, 0, explanation_rep, explanation_cons});
+            inStack.insert(rep);
+        }
+    }
+
+    Trace("datatypes-cycle-check2") << "No cycle detected for node " << n << ". Returning null." << endl;
+    return Node::null();
+}
+
+
 void TheoryDatatypes::checkSplit()
 {
   // get the relevant term set, currently all datatype equivalence classes

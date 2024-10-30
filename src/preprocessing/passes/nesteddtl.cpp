@@ -573,14 +573,10 @@ void Nesteddtl::defineArraySeqInMap(std::map<TypeNode, DType>* mapDType, std::ma
         TypeNode elementType = arrayType.getArrayConstituentType();
         // Add an empty constructor
         ss.str("");
-        ss  <<  "nil_"  <<  indexType  <<  "_"  <<  elementType;
-        std::shared_ptr<DTypeConstructor> nil = std::make_shared<DTypeConstructor>(ss.str());
-        newDType.addConstructor(nil);
-        // Add a constructor for the array's elements
-        std::shared_ptr<DTypeConstructor> cons = std::make_shared<DTypeConstructor>("cons");
-        // Iterate over the select assertions of the arrayType
-        TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
+        ss  <<  "cons_"  <<  indexType  <<  "_"  <<  elementType;
+        std::shared_ptr<DTypeConstructor> cons = std::make_shared<DTypeConstructor>(ss.str());
         cons->addArg("id", nm->integerType());
+        newDType.addConstructor(cons);
         // Insert the new type into the mapDType
         (*mapDType).insert(std::pair<TypeNode, DType>(arrayType, newDType));
     }
@@ -599,15 +595,9 @@ void Nesteddtl::defineArraySeqInMap(std::map<TypeNode, DType>* mapDType, std::ma
         TypeNode elementType = seqType.getSequenceElementType();
         // Add an empty constructor
         ss.str("");
-        ss  <<  "nil_" <<  elementType;
-        std::shared_ptr<DTypeConstructor> nil = std::make_shared<DTypeConstructor>(ss.str());
-        newDType.addConstructor(nil);
-        // Add a constructor for the array's elements
-        std::shared_ptr<DTypeConstructor> cons = std::make_shared<DTypeConstructor>("cons");
-        // Iterate over the select assertions of the arrayType
-        TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
+        ss  <<  "cons_" <<  elementType;
+        std::shared_ptr<DTypeConstructor> cons = std::make_shared<DTypeConstructor>(ss.str());
         cons->addArg("id", nm->integerType());
-           
         newDType.addConstructor(cons);
         // Insert the new type into the mapDType
         (*mapDType).insert(std::pair<TypeNode, DType>(newSeqType, newDType));
