@@ -1270,17 +1270,19 @@ void TheoryDatatypes::checkCycles() {
       if( !tn.isCodatatype() ){
         if (options().datatypes.dtCyclic)
         {
-          //do cycle checks
-          std::vector<Node> expl;
-          Trace("datatypes-cycle-check") << "...search for cycle starting at " << eqc << std::endl;
-          Node cn = searchForCycle(eqc, visited, expl);
-          Trace("datatypes-cycle-check") << "...finish." << std::endl;
-          if( !cn.isNull() ) {
-            Assert(expl.size() > 0);
-            Trace("dt-conflict")
-                << "CONFLICT: Cycle conflict : " << expl << std::endl;
-            d_im.sendDtConflict(expl, InferenceId::DATATYPES_CYCLE);
-            return;
+          if (visited.find(getRepresentative(eqc)) == visited.end()){
+            //do cycle checks
+            std::vector<Node> expl;
+            Trace("datatypes-cycle-check") << "...search for cycle starting at " << eqc << std::endl;
+            Node cn = searchForCycle(eqc, &visited, expl);
+            Trace("datatypes-cycle-check") << "...finish." << std::endl;
+            if( !cn.isNull() ) {
+              Assert(expl.size() > 0);
+              Trace("dt-conflict")
+                  << "CONFLICT: Cycle conflict : " << expl << std::endl;
+              d_im.sendDtConflict(expl, InferenceId::DATATYPES_CYCLE);
+              return;
+            }
           }
         }
       }else{
@@ -1463,7 +1465,7 @@ void TheoryDatatypes::separateBisimilar(
 
 // Postcondition: If a cycle is detected, 'explanation' contains the reason why 'n' is a subterm of 'on'.
 Node TheoryDatatypes::searchForCycle(TNode n,
-                                     std::map<TNode, bool>& visited,
+                                     std::map<TNode, bool>* visited,
                                      std::vector<Node>& explanation)
 {
     Trace("datatypes-cycle-check2") << "________________________" << endl;
@@ -1486,11 +1488,11 @@ Node TheoryDatatypes::searchForCycle(TNode n,
 
     Trace("datatypes-cycle-check2") << "Representative of node " << n << " is " << rep << endl;
 
-    if (visited.find(rep) != visited.end()) {
+    if (visited->find(rep) != visited->end()) {
         Trace("datatypes-cycle-check2") << "Node " << rep << " is already visited, skipping DFS." << endl;
         return Node::null();
     }
-    visited[rep] = true;
+    (*visited)[rep] = true;
 
     if (cons.getKind() != Kind::APPLY_CONSTRUCTOR) {
         Trace("datatypes-cycle-check2") << "Node " << rep << " is not an constructor application, skipping DFS." << endl;
@@ -1511,8 +1513,8 @@ Node TheoryDatatypes::searchForCycle(TNode n,
         Trace("datatypes-cycle-check2") << "Inspecting node " << currentNode << " at edge index " << current.currentEdge << endl;
 
         // Mark the node as visited if it's the first time encountering it
-        if (visited.find(currentNode) == visited.end()) {
-            visited[currentNode] = true;
+        if (visited->find(currentNode) == visited->end()) {
+            (*visited)[currentNode] = true;
             Trace("datatypes-cycle-check2") << "Marked node " << currentNode << " as visited." << endl;
         }
 
@@ -1560,7 +1562,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
 
             Trace("datatypes-cycle-check2") << "Returning node " << rep << " due to cycle detection." << endl;
             return rep;
-        } else if (visited.find(rep) != visited.end()) {
+        } else if (visited->find(rep) != visited->end()) {
             Trace("datatypes-cycle-check2") << "Neighbor " << neighbor << " already visited, skipping." << endl;
         } else {
             // Prepare explanations for the new neighbor node being added to the stack
