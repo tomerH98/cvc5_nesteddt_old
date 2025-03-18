@@ -1,0 +1,18 @@
+; COMMAND-LINE: --nesteddt --dt-blast-splits
+; EXPECT: unsat
+; DISABLE-TESTER: model
+; DISABLE-TESTER: unsat-core
+; DISABLE-TESTER: proof
+(set-logic ALL)
+(set-option :dt-nested-rec true)
+
+(declare-datatypes ((T 0)) (((nT) (cons (id Int) (seq (Seq T)) ) ) ))
+
+(declare-const x T)
+(declare-const s (Seq T))
+
+(assert (= x (seq.nth s 0)))
+(assert (= s (seq x)))
+(assert (not (= x nT)))
+
+(check-sat)

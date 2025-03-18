@@ -1,0 +1,18 @@
+; COMMAND-LINE: --nesteddt --dt-blast-splits
+; EXPECT: unsat
+; DISABLE-TESTER: model
+; DISABLE-TESTER: unsat-core
+; DISABLE-TESTER: proof
+(set-logic ALL)
+(set-option :dt-nested-rec true)
+
+(declare-datatypes ((T 0)) (((nT) (cons (id Int) (arr (Array Int T)) ) ) ))
+
+(declare-const x T)
+(declare-fun R (T) Bool)
+
+(assert (R x))
+(assert (not (R x)))
+
+(check-sat)
+
