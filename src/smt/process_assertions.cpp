@@ -117,6 +117,10 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
   {
     applyPass("bv-gauss", ap);
   }
+  if (options().smt.nesteddt)
+  {
+    applyPass("nesteddt", ap);
+  }
 
   // Add dummy assertion in last position - to be used as a
   // placeholder for any new assertions to get added
