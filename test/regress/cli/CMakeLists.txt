@@ -754,6 +754,22 @@ set(regress_0_tests
   regress0/datatypes/model-subterms-min.smt2
   regress0/datatypes/mutual-rec-param-dt.smt2
   regress0/datatypes/mutually-recursive.cvc.smt2
+  regress0/datatypes/nesteddt/ackermann1.smt2
+  regress0/datatypes/nesteddt/basic_case_no_array.smt2
+  regress0/datatypes/nesteddt/basic_problem.smt2
+  regress0/datatypes/nesteddt/basic_problem_diffent_child.smt2
+  regress0/datatypes/nesteddt/basic_problem_func.smt2
+  regress0/datatypes/nesteddt/basic_problem_func_int.smt2
+  regress0/datatypes/nesteddt/basic_problem_not_flatten.smt2
+  regress0/datatypes/nesteddt/converted_basic.smt2
+  regress0/datatypes/nesteddt/cycle_10.smt2
+  regress0/datatypes/nesteddt/cycle_100.smt2
+  regress0/datatypes/nesteddt/cycle_100_no_array.smt2
+  regress0/datatypes/nesteddt/cycle_10_diff_idx.smt2
+  regress0/datatypes/nesteddt/cycle_10_missing_link.smt2
+  regress0/datatypes/nesteddt/cycle_190.smt2
+  regress0/datatypes/nesteddt/cycle_50_diff_idx.smt2
+  regress0/datatypes/nesteddt/depth_cycles1.smt2
   regress0/datatypes/nesteddt/depth_cycles10.smt2
   regress0/datatypes/nesteddt/depth_cycles100.smt2
   regress0/datatypes/nesteddt/depth_cycles2.smt2
@@ -777,6 +793,7 @@ set(regress_0_tests
   regress0/datatypes/nesteddt/store_test5.smt2
   regress0/datatypes/nesteddt/store_test6.smt2
   regress0/datatypes/nesteddt/store_test7.smt2
+  regress0/datatypes/nesteddt/store_test8.smt2
   regress0/datatypes/nesteddt/term_test1.smt2
   regress0/datatypes/nesteddt/term_test2.smt2
   regress0/datatypes/nesteddt/term_test3.smt2
