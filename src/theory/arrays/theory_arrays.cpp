@@ -1504,6 +1504,10 @@ void TheoryArrays::setNonLinear(TNode a)
 void TheoryArrays::mergeArrays(TNode a, TNode b)
 {
   // Note: a is the new representative
+  if (!(a.getType().isArray() && b.getType().isArray())) {
+    Trace("nesteddttag") << spaces(context()->getLevel()) << "Arrays::mergeArrays: ("
+                    << a << ", " << b << ")\n";
+  }
   Assert(a.getType().isArray() && b.getType().isArray());
 
   if (d_mergeInProgress) {
