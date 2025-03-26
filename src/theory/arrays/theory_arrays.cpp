@@ -1466,11 +1466,6 @@ void TheoryArrays::setNonLinear(TNode a)
   if (options().arrays.arraysWeakEquivalence) return;
   if (d_infoMap.isNonLinear(a)) return;
 
-  Trace("arrays") << spaces(context()->getLevel()) << "Arrays::setNonLinear ("
-                  << a << ")\n";
-  d_infoMap.setNonLinear(a);
-  ++d_numNonLinear;
-
   const CTNodeList* i_a = d_infoMap.getIndices(a);
   const CTNodeList* st_a = d_infoMap.getStores(a);
   const CTNodeList* inst_a = d_infoMap.getInStores(a);
@@ -1512,6 +1507,7 @@ void TheoryArrays::mergeArrays(TNode a, TNode b)
     Trace("nesteddttag") << spaces(context()->getLevel()) << "Arrays::mergeArrays: ("
                     << a << ", " << b << ")\n";
   }
+  // Note: a is the new representative
   Assert(a.getType().isArray() && b.getType().isArray());
 
   if (d_mergeInProgress) {
