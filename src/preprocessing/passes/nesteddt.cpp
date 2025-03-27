@@ -179,6 +179,17 @@ PreprocessingPassResult Nesteddt::applyInternal(
     }
   }
 
+  // Add the new assertions to the assertionsToPreprocess
+  std::set<Node> newAssertions;
+  addAssertionsArrays(nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
+  addAssertionsArrays(nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
+
+  for (const auto& newAssertion : newAssertions)
+  {
+    assertionsToPreprocess->push_back(newAssertion);
+  }
+
+
   Trace("nesteddttag") << "___________________________" << std::endl;
   // print assertions
   for (size_t i = 0, n = assertionsToPreprocess->size(); i < n; ++i)
@@ -1013,11 +1024,11 @@ void Nesteddt::createUFArrays(std::map<TypeNode, TypeNode>* map,
       TypeNode newSeqType = nm->mkSequenceType(elementType);
 
       // Create a old to new
-      std::string consToArrName = consType.toString() + "_0";
+      std::string consToArrName ="f_seq_" + consType.toString();
       Node consToArr = sm->mkDummySkolem(
           consToArrName, nm->mkFunctionType(consType, newSeqType));
       // Create a new to old
-      std::string arrToOldName = consType.toString() + "_1";
+      std::string arrToOldName = "g_seq_" +consType.toString();
       Node arrToCons = sm->mkDummySkolem(
           arrToOldName, nm->mkFunctionType(newSeqType, consType));
       // Create a vector of the two uninterpreted functions
@@ -1214,6 +1225,52 @@ void Nesteddt::translateOperator(
     nodeMap->insert(std::pair<Node, Node>(current, newNode));
   }
 }
+
+void Nesteddt::addAssertionsArrays(
+  NodeManager* nm,
+  std::set<Node>* newAssertions,
+  std::map<TypeNode, std::vector<Node>>* ufArrays,
+  std::set<Node>* arrays,
+  std::map<Node, Node>* nodeMap)
+{
+Node assertion, newArrayNode, consToArrFunc, arrToConsFunc, applyArrToCons,
+    applyconsToArr;
+for (const auto& originalArray : (*arrays))
+{
+  Trace("nesteddttag") << "Processing original array: " << originalArray
+                       << std::endl;
+
+  Assert(nodeMap->find(originalArray) != nodeMap->end());
+  newArrayNode = (*nodeMap)[originalArray];
+
+  TypeNode arrayType = originalArray.getType();
+  Assert(ufArrays->find(arrayType) != ufArrays->end());
+  consToArrFunc = (*ufArrays)[arrayType][0];
+  arrToConsFunc = (*ufArrays)[arrayType][1];
+
+  if (newArrayNode.getKind() == Kind::APPLY_UF
+      && newArrayNode.getOperator() == arrToConsFunc)
+  {
+    Trace("nesteddttag") << "  Array node is already in array form"
+                         << std::endl;
+    applyconsToArr = nm->mkNode(Kind::APPLY_UF, consToArrFunc, newArrayNode);
+    assertion = nm->mkNode(Kind::EQUAL, newArrayNode[0], applyconsToArr);
+    newAssertions->insert(assertion);
+  }
+  else
+  {
+    Trace("nesteddttag") << "  Array node is not in array form" << std::endl;
+    applyconsToArr = nm->mkNode(Kind::APPLY_UF, consToArrFunc, newArrayNode);
+    applyArrToCons =
+        nm->mkNode(Kind::APPLY_UF, arrToConsFunc, applyconsToArr);
+    assertion = nm->mkNode(Kind::EQUAL, newArrayNode, applyArrToCons);
+  }
+
+  Trace("nesteddttag") << "  Inserting assertion: " << assertion << std::endl;
+  newAssertions->insert(assertion);
+}
+}
+
 }  // namespace passes
 }  // namespace preprocessing
 }  // namespace cvc5::internal

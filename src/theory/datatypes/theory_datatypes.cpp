@@ -1275,6 +1275,56 @@ bool TheoryDatatypes::instantiate(EqcInfo* eqc, Node n)
 void TheoryDatatypes::checkCycles() {
   Trace("datatypes-cycle-check") << "Check acyclicity" << std::endl;
   std::vector< Node > cdt_eqc;
+  // create a map between a tnode to a set of tnodes
+  std::map<Node, std::set<Node>> nestedEdges;
+  Trace("new-cycles") << "starting" <<std::endl;
+  // print all the equivalence classes, in each class print all the terms
+  eq::EqClassesIterator eqcs_i_debug = eq::EqClassesIterator(d_equalityEngine);
+  while( !eqcs_i_debug.isFinished() ){
+    Node eqc = (*eqcs_i_debug);
+    Trace("new-cycles") << "Eqc: " << eqc << std::endl;
+    eq::EqClassIterator eqc_i_debug = eq::EqClassIterator(eqc, d_equalityEngine);
+    while( !eqc_i_debug.isFinished() ){
+      Node n = (*eqc_i_debug);
+      if (n.getKind()==Kind::SELECT || n.getKind()==Kind::SEQ_NTH)
+      {
+        Trace("new-cycles") << "Found select " << n << std::endl;
+        Node father = n[0];
+        Node child = getRepresentative(n);
+        Trace("new-cycles") << "Found select " << father << " to " << child << std::endl;
+        if (nestedEdges.find(father) == nestedEdges.end())
+        {
+          nestedEdges[father] = std::set<Node>();
+        }
+        nestedEdges[father].insert(child);
+      }
+      if (n.getKind() == Kind::APPLY_UF && n.getOperator().getName().rfind("g_", 0) == 0)
+      {
+        Trace("new-cycles") << "Found gterm " << n << std::endl;
+        Node father = getRepresentative(n);
+        Node child = n[0];
+        Trace("new-cycles") << "Found gterm " << father << " to " << child << std::endl;
+        if (nestedEdges.find(father) == nestedEdges.end())
+        {
+          nestedEdges[father] = std::set<Node>();
+        }
+        nestedEdges[father].insert(child);
+      }
+      Trace("new-cycles") << "  " << n << std::endl;
+      ++eqc_i_debug;
+    }
+    ++eqcs_i_debug;
+  }
+  Trace("new-cycles") << "The edges are: " <<std::endl;
+  for (std::map<Node, std::set<Node>>::iterator it = nestedEdges.begin(); it != nestedEdges.end(); ++it)
+  {
+    Trace("new-cycles") << "  " << it->first << " -> " ;
+    for (std::set<Node>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+    {
+      Trace("new-cycles") << *it2 << " ";
+    }
+    Trace("new-cycles") << std::endl;
+  }
   eq::EqClassesIterator eqcs_i = eq::EqClassesIterator(d_equalityEngine);
   while( !eqcs_i.isFinished() ){
     Node eqc = (*eqcs_i);
@@ -1288,7 +1338,7 @@ void TheoryDatatypes::checkCycles() {
           std::map< TNode, bool > proc;
           std::vector<Node> expl;
           Trace("datatypes-cycle-check") << "...search for cycle starting at " << eqc << std::endl;
-          Node cn = searchForCycle( eqc, eqc, visited, proc, expl );
+          Node cn = searchForCycle( eqc, eqc, visited, proc, expl, nestedEdges, true);
           Trace("datatypes-cycle-check") << "...finish." << std::endl;
           //if we discovered a different cycle while searching this one
           if( !cn.isNull() && cn!=eqc ){
@@ -1296,7 +1346,7 @@ void TheoryDatatypes::checkCycles() {
             proc.clear();
             expl.clear();
             Node prev = cn;
-            cn = searchForCycle( cn, cn, visited, proc, expl );
+            cn = searchForCycle( cn, cn, visited, proc, expl, nestedEdges, true );
             Assert(prev == cn);
           }
 
@@ -1492,6 +1542,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
                                      std::map<TNode, bool>& visited,
                                      std::map<TNode, bool>& proc,
                                      std::vector<Node>& explanation,
+                                     std::map<Node, std::set<Node>> nestedEdges,
                                      bool firstTime)
 {
   Trace("datatypes-cycle-check2") << "Search for cycle " << n << " " << on << endl;
@@ -1522,7 +1573,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
       for (unsigned i = 0; i < nncons.getNumChildren(); i++)
       {
         TNode cn =
-            searchForCycle(nncons[i], on, visited, proc, explanation, false);
+            searchForCycle(nncons[i], on, visited, proc, explanation, nestedEdges, false);
         if( cn==on ) {
           //add explanation for why the constructor is connected
           if (n != nncons)
@@ -1531,6 +1582,27 @@ Node TheoryDatatypes::searchForCycle(TNode n,
           }
           return on;
         }else if( !cn.isNull() ){
+          return cn;
+        }
+      }
+    }
+    // Now, iterate over any nested edges associated with nn.
+    auto it = nestedEdges.find(nn);
+    if (it != nestedEdges.end())
+    {
+      for (const Node& nested : it->second)
+      {
+        TNode cn = searchForCycle(nested, on, visited, proc, explanation, nestedEdges, false);
+        if (cn == on)
+        {
+          if (n != nested)
+          {
+            explanation.push_back(n.eqNode(nested));
+          }
+          return on;
+        }
+        else if (!cn.isNull())
+        {
           return cn;
         }
       }
