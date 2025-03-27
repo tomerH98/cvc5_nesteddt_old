@@ -179,22 +179,6 @@ PreprocessingPassResult Nesteddt::applyInternal(
     }
   }
 
-  // Add the new assertions to the assertionsToPreprocess
-  std::set<Node> newAssertions;
-  addAssertionsSelect(
-      &selectNodes, &selextIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
-  addAssertionsSelect(
-      &seqNthNodes, &seqNthIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
-  addAssertionsArrays(nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
-  addAssertionsArrays(nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
-  addAssertionsStore(
-      &selextIndexes, nm, &newAssertions, &ufArrays, &storeNodes, &nodeMap);
-
-  for (const auto& newAssertion : newAssertions)
-  {
-    assertionsToPreprocess->push_back(newAssertion);
-  }
-
   Trace("nesteddttag") << "___________________________" << std::endl;
   // print assertions
   for (size_t i = 0, n = assertionsToPreprocess->size(); i < n; ++i)
@@ -762,19 +746,6 @@ void Nesteddt::defineArraySeqInMap(
     // add the id as an argument to the constructor
     cons->addArg("id", nm->integerType());
     // Iterate over the select assertions of the arrayType
-    TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
-    auto it2 = (*selectAssertions).find(arrayType);
-    if (it2 != (*selectAssertions).end())
-    {
-      for (size_t i = 0, element_num = it2->second.size(); i < element_num; i++)
-      {
-        // Add new field for each index
-        ss.str("");
-        ;
-        ss << "index_" << i;
-        cons->addArg(ss.str(), newElementType);
-      }
-    }
     newDType.addConstructor(cons);
     // Insert the new type into the mapDType
     (*mapDType).insert(std::pair<TypeNode, DType>(arrayType, newDType));
@@ -796,19 +767,6 @@ void Nesteddt::defineArraySeqInMap(
         std::make_shared<DTypeConstructor>("cons");
     // add the id as an argument to the constructor
     cons->addArg("id", nm->integerType());
-
-    auto it2 = (*seqNthAssertions).find(seqType);
-    if (it2 != (*seqNthAssertions).end())
-    {
-      for (size_t i = 0, element_num = it2->second.size(); i < element_num; i++)
-      {
-        // Add new field for each index
-        ss.str("");
-        ;
-        ss << "index_" << i;
-        cons->addArg(ss.str(), newElementType);
-      }
-    }
     newDType.addConstructor(cons);
     // Insert the new type into the mapDType
     (*mapDType).insert(std::pair<TypeNode, DType>(seqType, newDType));
@@ -1254,187 +1212,6 @@ void Nesteddt::translateOperator(
   {
     Node newNode = nm->mkNode(operatorNode, newChildren);
     nodeMap->insert(std::pair<Node, Node>(current, newNode));
-  }
-}
-
-void Nesteddt::addAssertionsSelect(
-    std::set<Node>* selectNodes,
-    std::map<TypeNode, std::vector<Node>>* arrayIndexes,
-    NodeManager* nm,
-    std::set<Node>* newAssertions,
-    std::map<TypeNode, std::vector<Node>>* ufArrays,
-    std::map<Node, Node>* nodeMap)
-{
-  Node selector_application, assertion, selector, newSelectNode,
-      originalArrayNode, newArrayNode, originalIndexNode, arrToConsApplication;
-  // iterate over the selectNodes
-  for (const auto& originalSelectNode : (*selectNodes))
-  {
-    originalIndexNode = originalSelectNode[1];
-    originalArrayNode = originalSelectNode[0];
-    Trace("nesteddttag") << "Processing select node: " << originalSelectNode
-                         << std::endl;
-    Trace("nesteddttag") << "  Array: " << originalArrayNode
-                         << ", Index: " << originalIndexNode << std::endl;
-
-    Assert((nodeMap->find(originalSelectNode) != nodeMap->end()));
-    newSelectNode = (*nodeMap)[originalSelectNode];
-    Trace("nesteddttag") << "  Translated select node: " << newSelectNode
-                         << std::endl;
-
-    newArrayNode = arrToCons(nm, newSelectNode[0], ufArrays);
-    Trace("nesteddttag") << "  Translated recursive array node: "
-                         << newArrayNode << std::endl;
-
-    const DType& newDType = newArrayNode.getType().getDType();
-    Trace("nesteddttag") << "  DType of new array node: "
-                         << newArrayNode.getType() << std::endl;
-
-    for (size_t i = 0, n = newDType.getNumConstructors(); i < n; ++i)
-    {
-      const DTypeConstructor& cons = newDType[i];
-      Trace("nesteddttag") << "  Constructor " << i << ": " << cons.getName()
-                           << " with " << cons.getNumArgs() << " args"
-                           << std::endl;
-
-      if (cons.getNumArgs() == 0)
-      {
-        Trace("nesteddttag") << "    Skipping nullary constructor" << std::endl;
-        continue;
-      }
-
-      std::vector<Node> oldIndexes =
-          (*arrayIndexes)[originalArrayNode.getType()];
-      Trace("nesteddttag") << "  Found " << oldIndexes.size()
-                           << " index(es) for array type "
-                           << originalArrayNode.getType() << std::endl;
-
-      for (size_t j = 0; j < oldIndexes.size(); j++)
-      {
-        Trace("nesteddttag")
-            << "    Comparing index: " << oldIndexes[j]
-            << " to current: " << originalIndexNode << std::endl;
-        if (oldIndexes[j] == originalIndexNode)
-        {
-          selector = cons[j + 1].getSelector();
-          selector_application =
-              nm->mkNode(Kind::APPLY_SELECTOR, selector, newArrayNode);
-          assertion =
-              nm->mkNode(Kind::EQUAL, selector_application, newSelectNode);
-          newAssertions->insert(assertion);
-
-          Trace("nesteddttag")
-              << "    Created assertion: " << assertion << std::endl;
-          break;
-        }
-      }
-    }
-  }
-}
-
-void Nesteddt::addAssertionsArrays(
-    NodeManager* nm,
-    std::set<Node>* newAssertions,
-    std::map<TypeNode, std::vector<Node>>* ufArrays,
-    std::set<Node>* arrays,
-    std::map<Node, Node>* nodeMap)
-{
-  Node assertion, newArrayNode, consToArrFunc, arrToConsFunc, applyArrToCons,
-      applyconsToArr;
-  for (const auto& originalArray : (*arrays))
-  {
-    Trace("nesteddttag") << "Processing original array: " << originalArray
-                         << std::endl;
-
-    Assert(nodeMap->find(originalArray) != nodeMap->end());
-    newArrayNode = (*nodeMap)[originalArray];
-
-    TypeNode arrayType = originalArray.getType();
-    Assert(ufArrays->find(arrayType) != ufArrays->end());
-    consToArrFunc = (*ufArrays)[arrayType][0];
-    arrToConsFunc = (*ufArrays)[arrayType][1];
-
-    if (newArrayNode.getKind() == Kind::APPLY_UF
-        && newArrayNode.getOperator() == arrToConsFunc)
-    {
-      Trace("nesteddttag") << "  Array node is already in array form"
-                           << std::endl;
-      applyconsToArr = nm->mkNode(Kind::APPLY_UF, consToArrFunc, newArrayNode);
-      assertion = nm->mkNode(Kind::EQUAL, newArrayNode[0], applyconsToArr);
-      newAssertions->insert(assertion);
-    }
-    else
-    {
-      Trace("nesteddttag") << "  Array node is not in array form" << std::endl;
-      applyconsToArr = nm->mkNode(Kind::APPLY_UF, consToArrFunc, newArrayNode);
-      applyArrToCons =
-          nm->mkNode(Kind::APPLY_UF, arrToConsFunc, applyconsToArr);
-      assertion = nm->mkNode(Kind::EQUAL, newArrayNode, applyArrToCons);
-    }
-
-    Trace("nesteddttag") << "  Inserting assertion: " << assertion << std::endl;
-    newAssertions->insert(assertion);
-  }
-}
-
-void Nesteddt::addAssertionsStore(
-    std::map<TypeNode, std::vector<Node>>* arrayIndexes,
-    NodeManager* nm,
-    std::set<Node>* newAssertions,
-    std::map<TypeNode, std::vector<Node>>* ufArrays,
-    std::set<Node>* storeNodes,
-    std::map<Node, Node>* nodeMap)
-{
-  Node assertion, arrToConsFunc, newStoreNode, newArray, newIndex, newValue;
-  Node array, index, value, newArrayCons, newStoreCons, oldIndex, selector,
-      convertedOldIndex, applySelect, selector_store;
-  TypeNode arrayType;
-  // iterate over the storeNodes
-  for (const auto& storeNode : (*storeNodes))
-  {
-    // find the storeNode in the nodeMap
-    Assert(nodeMap->find(storeNode) != nodeMap->end());
-    newStoreNode = (*nodeMap)[storeNode];
-
-    // get the newStoreNode's children
-    newArray = newStoreNode[0][0];
-    newIndex = newStoreNode[0][1];
-    newValue = newStoreNode[0][2];
-
-    // get the storeNode's children
-    array = storeNode[0];
-    index = storeNode[1];
-    value = storeNode[2];
-    // get the array's type
-    arrayType = array.getType();
-
-    newArrayCons = arrToCons(nm, newArray, ufArrays);
-
-    const DType& newDType = newArrayCons.getType().getDType();
-    const DTypeConstructor& cons = newDType[0];
-    // check if the arrayType is not in the arrayIndexes
-    Assert(arrayIndexes->find(arrayType) != arrayIndexes->end());
-    std::vector<Node> oldIndexes = (*arrayIndexes)[arrayType];
-    // iterate over the oldIndexes
-    for (size_t i = 0; i < oldIndexes.size(); i++)
-    {
-      oldIndex = oldIndexes[i];
-      selector = cons[i + 1].getSelector();
-
-      Assert(nodeMap->find(oldIndex) != nodeMap->end());
-      convertedOldIndex = (*nodeMap)[oldIndex];
-
-      applySelect =
-          nm->mkNode(Kind::SELECT, newStoreNode[0], convertedOldIndex);
-      selector_store = nm->mkNode(Kind::APPLY_SELECTOR, selector, newStoreNode);
-      assertion = nm->mkNode(Kind::EQUAL, selector_store, applySelect);
-      newAssertions->insert(assertion);
-
-      applySelect = nm->mkNode(Kind::SELECT, newArray, convertedOldIndex);
-      selector_store = nm->mkNode(Kind::APPLY_SELECTOR, selector, newArrayCons);
-      assertion = nm->mkNode(Kind::EQUAL, selector_store, applySelect);
-      newAssertions->insert(assertion);
-    }
   }
 }
 }  // namespace passes
