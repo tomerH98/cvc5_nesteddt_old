@@ -220,11 +220,13 @@ class Nesteddt : public PreprocessingPass
 
   Node consToArr(NodeManager* nm,
                  Node node,
-                 std::map<TypeNode, std::vector<Node>>* ufArrays);
+                 std::map<TypeNode, std::vector<Node>>* ufArrays,
+                 bool forceUF = false);
 
   Node arrToCons(NodeManager* nm,
                  Node node,
-                 std::map<TypeNode, std::vector<Node>>* ufArrays);
+                 std::map<TypeNode, std::vector<Node>>* ufArrays,
+                 bool forceUF = false);
 
   /**
    * Translate a single assertion to the new recursive types
