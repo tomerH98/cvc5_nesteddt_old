@@ -521,6 +521,7 @@ Node TheoryInferenceManager::mkExplain(TNode n)
 Node TheoryInferenceManager::mkExplainPartial(
     const std::vector<Node>& exp, const std::vector<Node>& noExplain)
 {
+  return nodeManager()->mkConst(true);
   std::vector<TNode> assumps;
   for (const Node& e : exp)
   {

@@ -181,15 +181,8 @@ PreprocessingPassResult Nesteddt::applyInternal(
 
   // Add the new assertions to the assertionsToPreprocess
   std::set<Node> newAssertions;
-  addAssertionsSelect(
-      &selectNodes, &selextIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
-  addAssertionsSelect(
-      &seqNthNodes, &seqNthIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
   addAssertionsArrays(nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
   addAssertionsArrays(nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
-  addAssertionsStore(
-      &selextIndexes, nm, &newAssertions, &ufArrays, &storeNodes, &nodeMap);
-
   for (const auto& newAssertion : newAssertions)
   {
     assertionsToPreprocess->push_back(newAssertion);
@@ -763,18 +756,6 @@ void Nesteddt::defineArraySeqInMap(
     cons->addArg("id", nm->integerType());
     // Iterate over the select assertions of the arrayType
     TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
-    auto it2 = (*selectAssertions).find(arrayType);
-    if (it2 != (*selectAssertions).end())
-    {
-      for (size_t i = 0, element_num = it2->second.size(); i < element_num; i++)
-      {
-        // Add new field for each index
-        ss.str("");
-        ;
-        ss << "index_" << i;
-        cons->addArg(ss.str(), newElementType);
-      }
-    }
     newDType.addConstructor(cons);
     // Insert the new type into the mapDType
     (*mapDType).insert(std::pair<TypeNode, DType>(arrayType, newDType));
@@ -796,19 +777,6 @@ void Nesteddt::defineArraySeqInMap(
         std::make_shared<DTypeConstructor>("cons");
     // add the id as an argument to the constructor
     cons->addArg("id", nm->integerType());
-
-    auto it2 = (*seqNthAssertions).find(seqType);
-    if (it2 != (*seqNthAssertions).end())
-    {
-      for (size_t i = 0, element_num = it2->second.size(); i < element_num; i++)
-      {
-        // Add new field for each index
-        ss.str("");
-        ;
-        ss << "index_" << i;
-        cons->addArg(ss.str(), newElementType);
-      }
-    }
     newDType.addConstructor(cons);
     // Insert the new type into the mapDType
     (*mapDType).insert(std::pair<TypeNode, DType>(seqType, newDType));
