@@ -1055,11 +1055,11 @@ void Nesteddt::createUFArrays(std::map<TypeNode, TypeNode>* map,
       TypeNode newSeqType = nm->mkSequenceType(elementType);
 
       // Create a old to new
-      std::string consToArrName = consType.toString() + "_0";
+      std::string consToArrName = "f_seq_" + consType.toString();
       Node consToArr = sm->mkDummySkolem(
           consToArrName, nm->mkFunctionType(consType, newSeqType));
       // Create a new to old
-      std::string arrToOldName = consType.toString() + "_1";
+      std::string arrToOldName = "g_seq_" + consType.toString();
       Node arrToCons = sm->mkDummySkolem(
           arrToOldName, nm->mkFunctionType(newSeqType, consType));
       // Create a vector of the two uninterpreted functions
@@ -1090,7 +1090,8 @@ void Nesteddt::createUFArrays(std::map<TypeNode, TypeNode>* map,
 
 Node Nesteddt::consToArr(NodeManager* nm,
                          Node node,
-                         std::map<TypeNode, std::vector<Node>>* ufArrays)
+                         std::map<TypeNode, std::vector<Node>>* ufArrays,
+                         bool forceUF)
 {
   Trace("nesteddttag") << "node: " << node << std::endl;
   TypeNode t = node.getType();
@@ -1098,7 +1099,8 @@ Node Nesteddt::consToArr(NodeManager* nm,
   Assert(ufArrays->find(t) != ufArrays->end());
   Node consToArr = (*ufArrays)[t][0];
   Node arrToCons = (*ufArrays)[t][1];
-  if (node.getKind() == Kind::APPLY_UF && node.getOperator() == arrToCons)
+  if (!forceUF && node.getKind() == Kind::APPLY_UF
+      && node.getOperator() == arrToCons)
   {
     return node[0];
   }
@@ -1108,14 +1110,16 @@ Node Nesteddt::consToArr(NodeManager* nm,
 
 Node Nesteddt::arrToCons(NodeManager* nm,
                          Node node,
-                         std::map<TypeNode, std::vector<Node>>* ufArrays)
+                         std::map<TypeNode, std::vector<Node>>* ufArrays,
+                         bool forceUF)
 {
   TypeNode t = node.getType();
   Assert(t.isArray() || t.isSequence());
   Assert(ufArrays->find(t) != ufArrays->end());
   Node consToArr = (*ufArrays)[t][0];
   Node arrToCons = (*ufArrays)[t][1];
-  if (node.getKind() == Kind::APPLY_UF && node.getOperator() == consToArr)
+  if (!forceUF && node.getKind() == Kind::APPLY_UF
+      && node.getOperator() == consToArr)
   {
     return node[0];
   }
@@ -1349,27 +1353,18 @@ void Nesteddt::addAssertionsArrays(
     Assert(nodeMap->find(originalArray) != nodeMap->end());
     newArrayNode = (*nodeMap)[originalArray];
 
-    TypeNode arrayType = originalArray.getType();
-    Assert(ufArrays->find(arrayType) != ufArrays->end());
-    consToArrFunc = (*ufArrays)[arrayType][0];
-    arrToConsFunc = (*ufArrays)[arrayType][1];
-
-    if (newArrayNode.getKind() == Kind::APPLY_UF
-        && newArrayNode.getOperator() == arrToConsFunc)
+    if (originalArray.getKind() == Kind::STORE)
     {
-      Trace("nesteddttag") << "  Array node is already in array form"
-                           << std::endl;
-      applyconsToArr = nm->mkNode(Kind::APPLY_UF, consToArrFunc, newArrayNode);
-      assertion = nm->mkNode(Kind::EQUAL, newArrayNode[0], applyconsToArr);
-      newAssertions->insert(assertion);
+      Assert(newArrayNode.getKind() == Kind::APPLY_UF);
+      Node arrVersion = consToArr(nm, newArrayNode, ufArrays, true);
+      assertion = nm->mkNode(Kind::EQUAL, newArrayNode[0], arrVersion);
     }
     else
     {
-      Trace("nesteddttag") << "  Array node is not in array form" << std::endl;
-      applyconsToArr = nm->mkNode(Kind::APPLY_UF, consToArrFunc, newArrayNode);
-      applyArrToCons =
-          nm->mkNode(Kind::APPLY_UF, arrToConsFunc, applyconsToArr);
-      assertion = nm->mkNode(Kind::EQUAL, newArrayNode, applyArrToCons);
+      Assert(newArrayNode.getKind() != Kind::APPLY_UF);
+      Node arrVersion = consToArr(nm, newArrayNode, ufArrays, true);
+      Node consVersion = arrToCons(nm, arrVersion, ufArrays, true);
+      assertion = nm->mkNode(Kind::EQUAL, newArrayNode, consVersion);
     }
 
     Trace("nesteddttag") << "  Inserting assertion: " << assertion << std::endl;
