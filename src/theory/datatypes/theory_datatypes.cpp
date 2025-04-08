@@ -1273,6 +1273,92 @@ bool TheoryDatatypes::instantiate(EqcInfo* eqc, Node n)
 }
 
 void TheoryDatatypes::checkCycles() {
+  // define a map between TNode to a set of TNodes
+  std::map< TNode, std::set< TNode > > new_edges;
+  TNode father, child;
+  // iterate over equivalence classes
+  eq::EqClassesIterator cy_eqcs_i = eq::EqClassesIterator(d_equalityEngine);
+  while (!cy_eqcs_i.isFinished())
+  {
+    Node eqc = (*cy_eqcs_i);
+    // iterate over the terms in the equivalence class
+    eq::EqClassIterator cy_eqc_i = eq::EqClassIterator(eqc, d_equalityEngine);
+    while (!cy_eqc_i.isFinished())
+    {
+      Node n = (*cy_eqc_i);
+      Kind nk = n.getKind();
+      if (nk == Kind::SELECT || nk == Kind::SEQ_NTH)
+      {
+        Trace("new-cycle-check") << "Select " << n << std::endl;
+        father = n[0];
+        child = getRepresentative(n);
+        if (new_edges.find(father) == new_edges.end())
+        {
+          new_edges[father] = std::set< TNode >();
+        }
+        Trace("new-cycle-check") << "Select " << father << " -> " << child << std::endl;
+        new_edges[father].insert(child);
+        if (n[0].getKind() == Kind::APPLY_UF)
+        {
+          std::string op = n[0].getOperator().toString();
+          if (op.substr(0, 2) == "f_"){
+            Trace("new-cycle-check") << "UF " << n[0] << std::endl;
+            father = getRepresentative(n[0][0]) ;
+            child = n[0];
+            Trace("new-cycle-check") << "UF " << father << " -> " << child << std::endl;
+            if (new_edges.find(father) == new_edges.end())
+            {
+              new_edges[father] = std::set< TNode >();
+            }
+            new_edges[father].insert(child);
+          }
+
+
+        }
+      }
+      if (nk == Kind::APPLY_UF)
+        {
+          std::string op = n.getOperator().toString();
+          if (op.substr(0, 2) == "g_"){
+            Trace("new-cycle-check") << "UF " << n << std::endl;
+            father = getRepresentative(n);
+            child = n[0];
+            Trace("new-cycle-check") << "UF " << father << " -> " << child << std::endl;
+            if (new_edges.find(father) == new_edges.end())
+            {
+              new_edges[father] = std::set< TNode >();
+            }
+            new_edges[father].insert(child);
+          }
+          if (op.substr(0, 2) == "f_"){
+            Trace("new-cycle-check") << "UF " << n << std::endl;
+            father = getRepresentative(n[0]) ;
+            child = n;
+            Trace("new-cycle-check") << "UF " << father << " -> " << child << std::endl;
+            if (new_edges.find(father) == new_edges.end())
+            {
+              new_edges[father] = std::set< TNode >();
+            }
+            new_edges[father].insert(child);
+          }
+        }
+      ++cy_eqc_i;
+    }
+    ++cy_eqcs_i;
+  }  
+  // print the edges
+  Trace("new-cycle-check") << "Edges: " << std::endl;
+  for (std::map< TNode, std::set< TNode > >::iterator it = new_edges.begin();
+       it != new_edges.end(); ++it)
+  {
+    Trace("new-cycle-check") << "  " << it->first << " -> ";
+    for (std::set< TNode >::iterator jt = it->second.begin();
+         jt != it->second.end(); ++jt)
+    {
+      Trace("new-cycle-check") << *jt << " ";
+    }
+    Trace("new-cycle-check") << std::endl;
+  }
   Trace("datatypes-cycle-check") << "Check acyclicity" << std::endl;
   std::vector< Node > cdt_eqc;
   eq::EqClassesIterator eqcs_i = eq::EqClassesIterator(d_equalityEngine);
@@ -1288,7 +1374,7 @@ void TheoryDatatypes::checkCycles() {
           std::map< TNode, bool > proc;
           std::vector<Node> expl;
           Trace("datatypes-cycle-check") << "...search for cycle starting at " << eqc << std::endl;
-          Node cn = searchForCycle( eqc, eqc, visited, proc, expl );
+          Node cn = searchForCycle( eqc, eqc, visited, proc, expl, new_edges );
           Trace("datatypes-cycle-check") << "...finish." << std::endl;
           //if we discovered a different cycle while searching this one
           if( !cn.isNull() && cn!=eqc ){
@@ -1296,7 +1382,7 @@ void TheoryDatatypes::checkCycles() {
             proc.clear();
             expl.clear();
             Node prev = cn;
-            cn = searchForCycle( cn, cn, visited, proc, expl );
+            cn = searchForCycle( cn, cn, visited, proc, expl, new_edges );
             Assert(prev == cn);
           }
 
@@ -1492,6 +1578,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
                                      std::map<TNode, bool>& visited,
                                      std::map<TNode, bool>& proc,
                                      std::vector<Node>& explanation,
+                                     const std::map<TNode, std::set<TNode>>& new_edges,
                                      bool firstTime)
 {
   Trace("datatypes-cycle-check2") << "Search for cycle " << n << " " << on << endl;
@@ -1522,7 +1609,7 @@ Node TheoryDatatypes::searchForCycle(TNode n,
       for (unsigned i = 0; i < nncons.getNumChildren(); i++)
       {
         TNode cn =
-            searchForCycle(nncons[i], on, visited, proc, explanation, false);
+            searchForCycle(nncons[i], on, visited, proc, explanation, new_edges, false);
         if( cn==on ) {
           //add explanation for why the constructor is connected
           if (n != nncons)
@@ -1531,6 +1618,27 @@ Node TheoryDatatypes::searchForCycle(TNode n,
           }
           return on;
         }else if( !cn.isNull() ){
+          return cn;
+        }
+      }
+    }
+    // Check edges from new_edges[nn]
+    auto it = new_edges.find(nn);
+    if (it != new_edges.end())
+    {
+      for (const TNode& m : it->second)
+      {
+        TNode cn = searchForCycle(m, on, visited, proc, explanation, new_edges, false);
+        if (cn == on)
+        {
+          if (n != m)
+          {
+            explanation.push_back(n.eqNode(m));
+          }
+          return on;
+        }
+        else if (!cn.isNull())
+        {
           return cn;
         }
       }

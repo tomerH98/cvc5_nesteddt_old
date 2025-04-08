@@ -181,15 +181,9 @@ PreprocessingPassResult Nesteddt::applyInternal(
 
   // Add the new assertions to the assertionsToPreprocess
   std::set<Node> newAssertions;
-  addAssertionsSelect(
-      &selectNodes, &selextIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
-  addAssertionsSelect(
-      &seqNthNodes, &seqNthIndexes, nm, &newAssertions, &ufArrays, &nodeMap);
   addAssertionsArrays(nm, &newAssertions, &ufArrays, &arrays, &nodeMap);
   addAssertionsArrays(nm, &newAssertions, &ufArrays, &seqs, &nodeMap);
-  addAssertionsStore(
-      &selextIndexes, nm, &newAssertions, &ufArrays, &storeNodes, &nodeMap);
-
+ 
   for (const auto& newAssertion : newAssertions)
   {
     assertionsToPreprocess->push_back(newAssertion);
@@ -762,19 +756,6 @@ void Nesteddt::defineArraySeqInMap(
     // add the id as an argument to the constructor
     cons->addArg("id", nm->integerType());
     // Iterate over the select assertions of the arrayType
-    TypeNode newElementType = convertTypeNode(elementType, mapTypeNode);
-    auto it2 = (*selectAssertions).find(arrayType);
-    if (it2 != (*selectAssertions).end())
-    {
-      for (size_t i = 0, element_num = it2->second.size(); i < element_num; i++)
-      {
-        // Add new field for each index
-        ss.str("");
-        ;
-        ss << "index_" << i;
-        cons->addArg(ss.str(), newElementType);
-      }
-    }
     newDType.addConstructor(cons);
     // Insert the new type into the mapDType
     (*mapDType).insert(std::pair<TypeNode, DType>(arrayType, newDType));
@@ -1011,9 +992,11 @@ void Nesteddt::createUFArrays(std::map<TypeNode, TypeNode>* map,
                               std::map<TypeNode, std::vector<Node>>* ufArrays)
 {
   SkolemManager* sm = nm->getSkolemManager();
+  int i = 0;
   // Iterate over map
   for (const auto& pair : (*map))
   {
+    i += 1;
     // Get the typeNode
     const TypeNode& oldArrayType = pair.first;
     // Check if typeNode is in an array type
@@ -1029,12 +1012,12 @@ void Nesteddt::createUFArrays(std::map<TypeNode, TypeNode>* map,
 
       // Create a old to new
       std::string consToArrName =
-          "f_" + indexType.toString() + "_" + elementType.toString();
+          "f_" + std::to_string(i);
       Node consToArr = sm->mkDummySkolem(
           consToArrName, nm->mkFunctionType(consType, newArrayType));
       // Create a new to old
       std::string arrToOldName =
-          "g_" + indexType.toString() + "_" + elementType.toString();
+          "g_" + std::to_string(i);
       Node arrToCons = sm->mkDummySkolem(
           arrToOldName, nm->mkFunctionType(newArrayType, consType));
       // Create a vector of the two uninterpreted functions
@@ -1059,11 +1042,11 @@ void Nesteddt::createUFArrays(std::map<TypeNode, TypeNode>* map,
       TypeNode newSeqType = nm->mkSequenceType(elementType);
 
       // Create a old to new
-      std::string consToArrName = "f_seq_" + consType.toString();
+      std::string consToArrName = "f_seq_" + std::to_string(i);
       Node consToArr = sm->mkDummySkolem(
           consToArrName, nm->mkFunctionType(consType, newSeqType));
       // Create a new to old
-      std::string arrToOldName = "g_seq_" + consType.toString();
+      std::string arrToOldName = "g_seq_" + std::to_string(i);
       Node arrToCons = sm->mkDummySkolem(
           arrToOldName, nm->mkFunctionType(newSeqType, consType));
       // Create a vector of the two uninterpreted functions

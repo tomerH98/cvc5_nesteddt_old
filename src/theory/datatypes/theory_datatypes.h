@@ -249,6 +249,7 @@ private:
                       std::map<TNode, bool>& visited,
                       std::map<TNode, bool>& proc,
                       std::vector<Node>& explanation,
+                      const std::map<TNode, std::set<TNode>>& new_edges,
                       bool firstTime = true);
   /**
    * Applying splitting.

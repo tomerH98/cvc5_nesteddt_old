@@ -1280,6 +1280,7 @@ void EqualityEngine::explainPredicate(TNode p, bool polarity,
 void EqualityEngine::explainLit(TNode lit,
                                 std::vector<TNode>& assumptions) const
 {
+  return;
   Trace("eq-exp") << "explainLit: " << lit << std::endl;
   Assert(lit.getKind() != Kind::AND);
   bool polarity = lit.getKind() != Kind::NOT;
