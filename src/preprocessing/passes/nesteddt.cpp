@@ -989,6 +989,10 @@ void Nesteddt::createVarsFuncsMap(std::map<TypeNode, TypeNode>* resolvedMap,
       TNode newConstructorNode = newConstructor.getConstructor();
       varsMap->insert(
           std::pair<Node, Node>(oldConstructorNode, newConstructorNode));
+
+      TNode oldTesterNode = oldConstructor.getTester();
+      TNode newTesterNode = newConstructor.getTester();
+      (*varsMap).insert(std::pair<Node, Node>(oldTesterNode, newTesterNode));
       // Get the number of arguments
       size_t oldNumArgs = oldConstructor.getNumArgs();
       Assert(oldNumArgs == newConstructor.getNumArgs());
@@ -1228,7 +1232,7 @@ void Nesteddt::translateOperator(
     }
   }
   std::set<Kind> kindSet = {
-      Kind::APPLY_SELECTOR, Kind::APPLY_CONSTRUCTOR, Kind::APPLY_UF};
+      Kind::APPLY_SELECTOR, Kind::APPLY_CONSTRUCTOR, Kind::APPLY_UF, Kind::APPLY_TESTER};
   if (kindSet.find(current.getKind()) != kindSet.end())
   {
     newChildren.insert(newChildren.begin(), operatorNode);
