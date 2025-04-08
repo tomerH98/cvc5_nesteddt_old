@@ -783,6 +783,8 @@ set(regress_0_tests
   regress0/datatypes/nesteddt/basic_problem_func.smt2
   regress0/datatypes/nesteddt/basic_problem_func_int.smt2
   regress0/datatypes/nesteddt/basic_problem_not_flatten.smt2
+  regress0/datatypes/nesteddt/basic_problem_tester.smt2
+  regress0/datatypes/nesteddt/basic_problem_tester_positive.smt2
   regress0/datatypes/nesteddt/converted_basic.smt2
   regress0/datatypes/nesteddt/cycle_10.smt2
   regress0/datatypes/nesteddt/cycle_100.smt2
