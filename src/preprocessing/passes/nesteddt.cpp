@@ -29,7 +29,7 @@ PreprocessingPassResult Nesteddt::applyInternal(
     AssertionPipeline* assertionsToPreprocess)
 {
   // Get the NodeManager
-  NodeManager* nm = NodeManager::currentNM();
+  NodeManager* nm = nodeManager();
 
   // print assertions
   for (size_t i = 0, n = assertionsToPreprocess->size(); i < n; ++i)
