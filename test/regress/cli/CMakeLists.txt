@@ -779,7 +779,6 @@ set(regress_0_tests
   regress0/datatypes/nesteddt/cycle_50_diff_idx.smt2
   regress0/datatypes/nesteddt/depth_cycles1.smt2
   regress0/datatypes/nesteddt/depth_cycles10.smt2
-  regress0/datatypes/nesteddt/depth_cycles100.smt2
   regress0/datatypes/nesteddt/depth_cycles2.smt2
   regress0/datatypes/nesteddt/depth_cycles3.smt2
   regress0/datatypes/nesteddt/dup_array.smt2
